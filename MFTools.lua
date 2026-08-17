@@ -1,7 +1,7 @@
 --[[
-    MFTools (Mordor Faction Tools) v1.0
-    Главный файл (Ядро + Автоустановщик + Автообновление)
-    Разработчик: Bryan Kogfield
+    MFTools (Mordor Faction Tools) v1.0 (beta test)
+    Р“Р»Р°РІРЅС‹Р№ С„Р°Р№Р» (РЇРґСЂРѕ + РђРІС‚РѕСѓСЃС‚Р°РЅРѕРІС‰РёРє + РђРІС‚РѕРѕР±РЅРѕРІР»РµРЅРёРµ)
+    Р Р°Р·СЂР°Р±РѕС‚С‡РёРє: Bryan Kogfield (Р‘РѕРіРґР°РЅ)
 ]]
 
 script_name("MFTools")
@@ -13,40 +13,37 @@ local samp = require "lib.samp.events"
 local dlstatus = require('moonloader').download_status
 
 -- ==========================================
--- === НАСТРОЙКИ АВТООБНОВЛЕНИЯ И ЗАГРУЗКИ ===
+-- === РќРђРЎРўР РћР™РљР РђР’РўРћРћР‘РќРћР’Р›Р•РќРРЇ Р Р—РђР“Р РЈР—РљР ===
 -- ==========================================
 local SCRIPT_VERSION = 1.0 
-local UPDATE_JSON_URL = "https://raw.githubusercontent.com/ТВОЙ_НИК/MFTools/main/update.json" 
-local MAIN_SCRIPT_URL = "https://raw.githubusercontent.com/ТВОЙ_НИК/MFTools/main/MFTools.lua" 
+local UPDATE_JSON_URL = "https://raw.githubusercontent.com/AyatoCobra/MFTools/main/update.json" 
+local MAIN_SCRIPT_URL = "https://raw.githubusercontent.com/AyatoCobra/MFTools/main/MFTools.lua" 
 
--- Список всех файлов, которые скрипт должен скачать при первой установке.
--- Тебе нужно вставить сюда Raw-ссылки с твоего GitHub для КАЖДОГО файла.
+-- РџСЂСЏРјС‹Рµ СЃСЃС‹Р»РєРё РЅР° РІСЃРµ С„Р°Р№Р»С‹ С‚СѓР»СЃР° РґР»СЏ Р°РІС‚РѕРјР°С‚РёС‡РµСЃРєРѕР№ Р·Р°РіСЂСѓР·РєРё Сѓ РёРіСЂРѕРєРѕРІ
 local files_to_download = {
-    { path = "MFTools\\core\\engine.lua", url = "https://raw.githubusercontent.com/ТВОЙ_НИК/MFTools/main/MFTools/core/engine.lua" },
-    { path = "MFTools\\core\\chatedit.lua", url = "https://raw.githubusercontent.com/ТВОЙ_НИК/MFTools/main/MFTools/core/chatedit.lua" },
-    { path = "MFTools\\core\\formatter.lua", url = "https://raw.githubusercontent.com/ТВОЙ_НИК/MFTools/main/MFTools/core/formatter.lua" },
-    { path = "MFTools\\core\\suggest.lua", url = "https://raw.githubusercontent.com/ТВОЙ_НИК/MFTools/main/MFTools/core/suggest.lua" },
-    { path = "MFTools\\data\\commands.lua", url = "https://raw.githubusercontent.com/ТВОЙ_НИК/MFTools/main/MFTools/data/commands.lua" },
-    { path = "MFTools\\ui\\dashboard.lua", url = "https://raw.githubusercontent.com/ТВОЙ_НИК/MFTools/main/MFTools/ui/dashboard.lua" },
-    { path = "MFTools\\ui\\tab_settings.lua", url = "https://raw.githubusercontent.com/ТВОЙ_НИК/MFTools/main/MFTools/ui/tab_settings.lua" },
-    { path = "MFTools\\ui\\tab_binds.lua", url = "https://raw.githubusercontent.com/ТВОЙ_НИК/MFTools/main/MFTools/ui/tab_binds.lua" },
-    { path = "MFTools\\ui\\tab_about.lua", url = "https://raw.githubusercontent.com/ТВОЙ_НИК/MFTools/main/MFTools/ui/tab_about.lua" },
-    { path = "MFTools\\ui\\theme.lua", url = "https://raw.githubusercontent.com/ТВОЙ_НИК/MFTools/main/MFTools/ui/theme.lua" },
-    { path = "MFTools\\ui\\utils.lua", url = "https://raw.githubusercontent.com/ТВОЙ_НИК/MFTools/main/MFTools/ui/utils.lua" },
-    { path = "MFTools\\ui\\uistate.lua", url = "https://raw.githubusercontent.com/ТВОЙ_НИК/MFTools/main/MFTools/ui/uistate.lua" },
-    { path = "MFTools\\ui\\tabs.lua", url = "https://raw.githubusercontent.com/ТВОЙ_НИК/MFTools/main/MFTools/ui/tabs.lua" },
-    { path = "MFTools\\ui\\overlay_autoreport.lua", url = "https://raw.githubusercontent.com/ТВОЙ_НИК/MFTools/main/MFTools/ui/overlay_autoreport.lua" },
-    { path = "MFTools\\radial\\radial_menu.lua", url = "https://raw.githubusercontent.com/ТВОЙ_НИК/MFTools/main/MFTools/radial/radial_menu.lua" },
-    { path = "MFTools\\target\\core.lua", url = "https://raw.githubusercontent.com/ТВОЙ_НИК/MFTools/main/MFTools/target/core.lua" }
+    { path = "MFTools\\core\\engine.lua", url = "https://raw.githubusercontent.com/AyatoCobra/MFTools/main/MFTools/core/engine.lua" },
+    { path = "MFTools\\core\\chatedit.lua", url = "https://raw.githubusercontent.com/AyatoCobra/MFTools/main/MFTools/core/chatedit.lua" },
+    { path = "MFTools\\core\\formatter.lua", url = "https://raw.githubusercontent.com/AyatoCobra/MFTools/main/MFTools/core/formatter.lua" },
+    { path = "MFTools\\core\\suggest.lua", url = "https://raw.githubusercontent.com/AyatoCobra/MFTools/main/MFTools/core/suggest.lua" },
+    { path = "MFTools\\data\\commands.lua", url = "https://raw.githubusercontent.com/AyatoCobra/MFTools/main/MFTools/data/commands.lua" },
+    { path = "MFTools\\ui\\dashboard.lua", url = "https://raw.githubusercontent.com/AyatoCobra/MFTools/main/MFTools/ui/dashboard.lua" },
+    { path = "MFTools\\ui\\tab_settings.lua", url = "https://raw.githubusercontent.com/AyatoCobra/MFTools/main/MFTools/ui/tab_settings.lua" },
+    { path = "MFTools\\ui\\tab_binds.lua", url = "https://raw.githubusercontent.com/AyatoCobra/MFTools/main/MFTools/ui/tab_binds.lua" },
+    { path = "MFTools\\ui\\tab_about.lua", url = "https://raw.githubusercontent.com/AyatoCobra/MFTools/main/MFTools/ui/tab_about.lua" },
+    { path = "MFTools\\ui\\theme.lua", url = "https://raw.githubusercontent.com/AyatoCobra/MFTools/main/MFTools/ui/theme.lua" },
+    { path = "MFTools\\ui\\utils.lua", url = "https://raw.githubusercontent.com/AyatoCobra/MFTools/main/MFTools/ui/utils.lua" },
+    { path = "MFTools\\ui\\uistate.lua", url = "https://raw.githubusercontent.com/AyatoCobra/MFTools/main/MFTools/ui/uistate.lua" },
+    { path = "MFTools\\ui\\tabs.lua", url = "https://raw.githubusercontent.com/AyatoCobra/MFTools/main/MFTools/ui/tabs.lua" },
+    { path = "MFTools\\ui\\overlay_autoreport.lua", url = "https://raw.githubusercontent.com/AyatoCobra/MFTools/main/MFTools/ui/overlay_autoreport.lua" },
+    { path = "MFTools\\radial\\radial_menu.lua", url = "https://raw.githubusercontent.com/AyatoCobra/MFTools/main/MFTools/radial/radial_menu.lua" },
+    { path = "MFTools\\target\\core.lua", url = "https://raw.githubusercontent.com/AyatoCobra/MFTools/main/MFTools/target/core.lua" }
 }
 
--- Глобальная переменная, чтобы понимать, можно ли запускать основной код
 local isInstalled = true
 local updateAvailable = false
 local updateUrl = ""
 local updateVersionText = ""
 
--- Создание нужных папок, если их нет
 local function createDirectories()
     local dirs = {
         getWorkingDirectory() .. "\\MFTools",
@@ -64,7 +61,6 @@ local function createDirectories()
     end
 end
 
--- Проверка, скачаны ли файлы
 for _, file in ipairs(files_to_download) do
     if not doesFileExist(getWorkingDirectory() .. "\\" .. file.path) then
         isInstalled = false
@@ -72,23 +68,21 @@ for _, file in ipairs(files_to_download) do
     end
 end
 
--- Загрузчик файлов
 local function downloadDependencies()
     createDirectories()
-    sampAddChatMessage("{3498DB}[MFTools] {FFFFFF}Началась первичная установка компонентов. Пожалуйста, подождите...", -1)
+    sampAddChatMessage("{3498DB}[MFTools] {FFFFFF}РќР°С‡Р°Р»Р°СЃСЊ РїРµСЂРІРёС‡РЅР°СЏ СѓСЃС‚Р°РЅРѕРІРєР° РєРѕРјРїРѕРЅРµРЅС‚РѕРІ. РџРѕР¶Р°Р»СѓР№СЃС‚Р°, РїРѕРґРѕР¶РґРёС‚Рµ...", -1)
     
     for i, file in ipairs(files_to_download) do
         local dest = getWorkingDirectory() .. "\\" .. file.path
         if not doesFileExist(dest) then
             downloadUrlToFile(file.url, dest, function(id, status, p1, p2)
                 if status == dlstatus.STATUS_ENDDOWNLOADDATA then
-                    print("MFTools: Загружен файл " .. file.path)
+                    print("MFTools: Р—Р°РіСЂСѓР¶РµРЅ С„Р°Р№Р» " .. file.path)
                 end
             end)
         end
     end
     
-    -- Ждем, пока все скачается
     local allDownloaded = false
     while not allDownloaded do
         wait(1000)
@@ -98,11 +92,10 @@ local function downloadDependencies()
         end
     end
     
-    sampAddChatMessage("{88FF88}[MFTools] {FFFFFF}Установка успешно завершена! Скрипт перезагружается...", -1)
+    sampAddChatMessage("{88FF88}[MFTools] {FFFFFF}РЈСЃС‚Р°РЅРѕРІРєР° СѓСЃРїРµС€РЅРѕ Р·Р°РІРµСЂС€РµРЅР°! РЎРєСЂРёРїС‚ РїРµСЂРµР·Р°РіСЂСѓР¶Р°РµС‚СЃСЏ...", -1)
     thisScript():reload()
 end
 
--- Проверка обновлений
 local function checkForUpdates()
     local jsonPath = getWorkingDirectory() .. "\\mft_update.json"
     downloadUrlToFile(UPDATE_JSON_URL, jsonPath, function(id, status, p1, p2)
@@ -121,8 +114,8 @@ local function checkForUpdates()
                         updateAvailable = true
                         updateUrl = data.url
                         updateVersionText = data.version_text
-                        sampAddChatMessage("{3498DB}[MFTools] {FFFFFF}Доступно новое обновление: {FFDD00}" .. updateVersionText, -1)
-                        sampAddChatMessage("{3498DB}[MFTools] {FFFFFF}Введите {FFDD00}/mft update{FFFFFF}, чтобы установить его.", -1)
+                        sampAddChatMessage("{3498DB}[MFTools] {FFFFFF}Р”РѕСЃС‚СѓРїРЅРѕ РЅРѕРІРѕРµ РѕР±РЅРѕРІР»РµРЅРёРµ: {FFDD00}" .. updateVersionText, -1)
+                        sampAddChatMessage("{3498DB}[MFTools] {FFFFFF}Р’РІРµРґРёС‚Рµ {FFDD00}/mft update{FFFFFF}, С‡С‚РѕР±С‹ СѓСЃС‚Р°РЅРѕРІРёС‚СЊ РµРіРѕ.", -1)
                     end
                 end
             end
@@ -130,21 +123,15 @@ local function checkForUpdates()
     end)
 end
 
--- ==========================================
--- === ЕСЛИ ФАЙЛОВ НЕТ -> ИДЕТ УСТАНОВКА ===
--- ==========================================
 if not isInstalled then
     function main()
         while not isSampAvailable() do wait(100) end
         downloadDependencies()
         wait(-1)
     end
-    return -- Останавливаем чтение файла, чтобы он не искал модули, которых еще нет
+    return 
 end
 
--- ==========================================
--- === ЕСЛИ ФАЙЛЫ ЕСТЬ -> ЗАПУСК ОСНОВНОГО КОДА ===
--- ==========================================
 local imgui = require "mimgui"
 
 _G.MFT = {
@@ -234,9 +221,8 @@ local uiFrame = imgui.OnFrame(
 function main()
     while not isSampAvailable() do wait(100) end
     
-    sampAddChatMessage("{3498DB}[MFTools v1.0] {FFFFFF}Скрипт успешно загружен! Меню: {FFDD00}/mft", -1)
+    sampAddChatMessage("{3498DB}[MFTools v1.0 (beta test)] {FFFFFF}РЎРєСЂРёРїС‚ СѓСЃРїРµС€РЅРѕ Р·Р°РіСЂСѓР¶РµРЅ! РњРµРЅСЋ: {FFDD00}/mft", -1)
     
-    -- Запускаем проверку обновлений через секунду после старта
     lua_thread.create(function()
         wait(2000)
         checkForUpdates()
@@ -244,11 +230,11 @@ function main()
 
     sampRegisterChatCommand("mft", function(arg) 
         if arg == "update" and updateAvailable then
-            sampAddChatMessage("{3498DB}[MFTools] {FFFFFF}Начинаем загрузку обновления...", -1)
+            sampAddChatMessage("{3498DB}[MFTools] {FFFFFF}РќР°С‡РёРЅР°РµРј Р·Р°РіСЂСѓР·РєСѓ РѕР±РЅРѕРІР»РµРЅРёСЏ...", -1)
             local scriptPath = thisScript().path
             downloadUrlToFile(updateUrl, scriptPath, function(id, status, p1, p2)
                 if status == dlstatus.STATUS_ENDDOWNLOADDATA then
-                    sampAddChatMessage("{88FF88}[MFTools] {FFFFFF}Обновление загружено! Скрипт перезагружается...", -1)
+                    sampAddChatMessage("{88FF88}[MFTools] {FFFFFF}РћР±РЅРѕРІР»РµРЅРёРµ Р·Р°РіСЂСѓР¶РµРЅРѕ! РЎРєСЂРёРїС‚ РїРµСЂРµР·Р°РіСЂСѓР¶Р°РµС‚СЃСЏ...", -1)
                     thisScript():reload()
                 end
             end)
@@ -276,7 +262,6 @@ function main()
     end
 end
 
--- === СТАНДАРТНЫЙ ПЕРЕХВАТ ===
 function samp.onSendCommand(cmd)
     suggest.onSendCommand(cmd)
     return formatter.onSendCommand(cmd)

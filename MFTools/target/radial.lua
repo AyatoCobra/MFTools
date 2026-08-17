@@ -1,0 +1,318 @@
+-- ‘‡ÈÎ: MFTools/target/radial.lua
+local imgui = require "mimgui"
+local vk = require "vkeys"
+local encoding = require "encoding"
+encoding.default = 'CP1251'
+local u8 = encoding.UTF8
+
+local rmath = require "MFTools.radial.radial_math"
+local engine = require "MFTools.core.engine"
+
+local tradial = {
+    isOpen = false,
+    activeSector = -1,
+    lockedGroup = -1,
+    activeAction = -1,
+    openAnim = 0.0,
+    lastKeyState = false
+}
+
+local function DrawDonutSector(dl, cx, cy, r_outer, r_inner, a_min, a_max, color)
+    local segments = math.max(4, math.floor(32 * ((a_max - a_min) / (math.pi * 2))))
+    local step = (a_max - a_min) / segments
+    for i = 0, segments - 1 do
+        local a1 = a_min + step * i
+        local a2 = a_min + step * (i + 1)
+        local p1 = imgui.ImVec2(cx + math.cos(a1) * r_inner, cy + math.sin(a1) * r_inner)
+        local p2 = imgui.ImVec2(cx + math.cos(a1) * r_outer, cy + math.sin(a1) * r_outer)
+        local p3 = imgui.ImVec2(cx + math.cos(a2) * r_outer, cy + math.sin(a2) * r_outer)
+        local p4 = imgui.ImVec2(cx + math.cos(a2) * r_inner, cy + math.sin(a2) * r_inner)
+        dl:AddQuadFilled(p1, p2, p3, p4, color)
+    end
+end
+
+local function wrapText(str, lineLen)
+    if #str <= lineLen then return str end
+    local words = {}
+    for w in str:gmatch("%S+") do table.insert(words, w) end
+    local lines = {""}
+    local currentLine = 1
+    for _, word in ipairs(words) do
+        if #(lines[currentLine] .. word) > lineLen and lines[currentLine] ~= "" then
+            currentLine = currentLine + 1
+            lines[currentLine] = word
+        else
+            lines[currentLine] = lines[currentLine] == "" and word or (lines[currentLine] .. " " .. word)
+        end
+    end
+    return table.concat(lines, "\n")
+end
+
+local function resolvePath(pathStr)
+    if type(pathStr) ~= "string" and type(pathStr) ~= "number" then return nil end
+    pathStr = tostring(pathStr)
+    if pathStr == "" or pathStr == "0" then return nil end
+    
+    local cur = MFT.binds
+    local parts = {}
+    for p in pathStr:gmatch("[^_]+") do table.insert(parts, tonumber(p)) end
+    
+    local lastItem = nil
+    for i, p in ipairs(parts) do
+        if not cur or not cur[p] then return nil end
+        lastItem = cur[p]
+        if i < #parts then cur = cur[p].items or {} end
+    end
+    return lastItem
+end
+
+function tradial.open()
+    tradial.isOpen = true
+end
+
+function tradial.process()
+    local tSet = MFT.settings.target
+    if not tSet or not tSet.enabled then return end
+
+    local hk = tonumber(tSet.radialKey) or 82
+    if hk == 0 then return end 
+
+    local isPressed = isKeyDown(hk)
+    local wasPressed = tradial.lastKeyState
+    tradial.lastKeyState = isPressed
+
+    if sampIsChatInputActive() or sampIsDialogActive() or MFT.state.isMenuOpen then
+        tradial.isOpen = false
+        tradial.lockedGroup = -1
+        return
+    end
+
+    if isPressed then
+        if MFT.state.aimTargetId ~= -1 and not tradial.isOpen then
+            tradial.isOpen = true
+        end
+    else
+        if tradial.isOpen then
+            tradial.isOpen = false
+            local style = tonumber(tSet.menuMode) or 0
+            
+            local binds = tSet.radialBinds or {}
+            local groups = tSet.groups or {}
+            
+            if style == 1 then
+                if tradial.lockedGroup ~= -1 and tradial.activeAction ~= -1 then
+                    local grp = groups[tostring(tradial.lockedGroup)]
+                    if grp then
+                        local grpBinds = grp.binds or {}
+                        local item = resolvePath(grpBinds[tostring(tradial.activeAction)])
+                        if item and item.type == "bind" then engine.executeBind(item) end
+                    end
+                end
+            else
+                if tradial.activeSector ~= -1 then
+                    local item = resolvePath(binds[tostring(tradial.activeSector)])
+                    if item and item.type == "bind" then engine.executeBind(item) end
+                end
+            end
+            tradial.lockedGroup = -1
+        end
+    end
+end
+
+function tradial.drawUI()
+    local dt = imgui.GetIO().DeltaTime
+    local targetAlpha = tradial.isOpen and 1.0 or 0.0
+    tradial.openAnim = tradial.openAnim + (targetAlpha - tradial.openAnim) * math.min(1.0, 15.0 * dt)
+
+    if tradial.openAnim < 0.01 then return end
+
+    local tSet = MFT.settings.target
+    local sw, sh = getScreenResolution()
+    local cx, cy = sw / 2, sh / 2
+    
+    local outerRadius = tSet.radius or 150.0
+    local innerRadius = outerRadius * 0.25
+    local style = tonumber(tSet.menuMode) or 0
+    
+    local binds = tSet.radialBinds or {}
+    local groups = tSet.groups or {}
+
+    imgui.SetNextWindowPos(imgui.ImVec2(0, 0), imgui.Cond.Always)
+    imgui.SetNextWindowSize(imgui.ImVec2(sw, sh), imgui.Cond.Always)
+    
+    imgui.PushStyleVarFloat(imgui.StyleVar.Alpha, tradial.openAnim)
+    imgui.PushStyleColor(imgui.Col.WindowBg, imgui.ImVec4(0.05, 0.05, 0.05, 0.5 * tradial.openAnim))
+    imgui.PushStyleVarFloat(imgui.StyleVar.WindowBorderSize, 0.0)
+
+    imgui.Begin("ActiveTargetRadial", nil, imgui.WindowFlags.NoTitleBar + imgui.WindowFlags.NoResize + imgui.WindowFlags.NoMove + imgui.WindowFlags.NoSavedSettings + imgui.WindowFlags.NoInputs)
+
+    local dl = imgui.GetWindowDrawList()
+    local mx, my = imgui.GetMousePos().x, imgui.GetMousePos().y
+
+    local c_accent = MFT.settings.colorAccent or {0.35, 0.55, 0.85, 1.0}
+    local baseAlpha = tSet.transparency or 0.8
+    local sCol = tSet.sectorColor or {0.1, 0.1, 0.1}
+    local sb_color = MFT.settings.colorSidebar or {0.10, 0.10, 0.10}
+    
+    tradial.activeSector = -1
+    tradial.activeAction = -1
+    
+    local distToCenter = math.sqrt((mx - cx)^2 + (my - cy)^2)
+
+    if MFT.fonts.title then imgui.PushFont(MFT.fonts.title) end
+
+    if style == 0 then
+        -- === —“¿Õƒ¿–“ÕŒ≈ Ã≈Õﬁ ===
+        local sectorsCount = tSet.sectorsCount or 6
+        local sectorAngle = (math.pi * 2) / sectorsCount
+        local startOffset = -math.pi / 2 - (sectorAngle / 2)
+        
+        dl:AddCircle(imgui.ImVec2(cx, cy), outerRadius + 8, imgui.GetColorU32Vec4(imgui.ImVec4(c_accent[1], c_accent[2], c_accent[3], 0.3 * tradial.openAnim)), 64, 2.0)
+        dl:AddCircle(imgui.ImVec2(cx, cy), outerRadius + 3, imgui.GetColorU32Vec4(imgui.ImVec4(c_accent[1], c_accent[2], c_accent[3], 0.8 * tradial.openAnim)), 64, 1.5)
+
+        if distToCenter > innerRadius and distToCenter <= outerRadius then
+            local a = math.atan2(my - cy, mx - cx)
+            if a < startOffset then a = a + math.pi * 2 end
+            local relA = (a - startOffset) % (math.pi * 2)
+            tradial.activeSector = math.floor(relA / sectorAngle) + 1
+        end
+
+        for i = 1, sectorsCount do
+            local a_start = startOffset + (i - 1) * sectorAngle
+            local a_end = startOffset + i * sectorAngle
+            
+            local isActive = (tradial.activeSector == i)
+            local secColor = imgui.ImVec4(sCol[1], sCol[2], sCol[3], baseAlpha * tradial.openAnim)
+            if isActive then secColor = imgui.ImVec4(c_accent[1], c_accent[2], c_accent[3], (baseAlpha + 0.2) * tradial.openAnim) end
+            
+            DrawDonutSector(dl, cx, cy, outerRadius, innerRadius, a_start, a_end, imgui.GetColorU32Vec4(secColor))
+            
+            local bordColor = isActive and imgui.GetColorU32Vec4(imgui.ImVec4(c_accent[1], c_accent[2], c_accent[3], 1.0 * tradial.openAnim)) or imgui.GetColorU32Vec4(imgui.ImVec4(c_accent[1], c_accent[2], c_accent[3], 0.4 * tradial.openAnim))
+            rmath.DrawArcLine(dl, cx, cy, outerRadius, a_start, a_end, bordColor, isActive and 2.5 or 1.5)
+            dl:AddLine(imgui.ImVec2(cx + math.cos(a_start)*innerRadius, cy + math.sin(a_start)*innerRadius), imgui.ImVec2(cx + math.cos(a_start)*outerRadius, cy + math.sin(a_start)*outerRadius), imgui.GetColorU32Vec4(imgui.ImVec4(c_accent[1], c_accent[2], c_accent[3], 0.3 * tradial.openAnim)), 1.5)
+
+            local textX, textY = rmath.GetSectorCenter(cx, cy, innerRadius + (outerRadius - innerRadius)/2, a_start, a_end)
+            local item = resolvePath(binds[tostring(i)])
+            local rawText = item and (item.name and u8(item.name) or u8"¡ËÌ‰") or u8"œÛÒÚÓ"
+            
+            local secText = wrapText(string.sub(rawText, 1, 15), 10)
+            local tSize = imgui.CalcTextSize(secText)
+            dl:AddText(imgui.ImVec2(textX - tSize.x/2, textY - tSize.y/2), imgui.GetColorU32Vec4(imgui.ImVec4(1, 1, 1, isActive and 1.0 or 0.7)), secText)
+        end
+    else
+        -- === Ã≈Õﬁ — √–”œœ¿Ã» (‘» —¿÷»ﬂ Ã€ÿ») ===
+        local groupCount = tSet.sectorsCount or 6
+        local groupAngle = (math.pi * 2) / groupCount
+        local groupStart = -math.pi / 2 - (groupAngle / 2)
+        local midRadius = outerRadius * 0.55
+        local gap = 8
+        local outerInnerRadius = midRadius + gap
+        
+        dl:AddCircle(imgui.ImVec2(cx, cy), midRadius + 2, imgui.GetColorU32Vec4(imgui.ImVec4(c_accent[1], c_accent[2], c_accent[3], 0.6 * tradial.openAnim)), 64, 1.5)
+        
+        if distToCenter > innerRadius and distToCenter <= midRadius then
+            local a = math.atan2(my - cy, mx - cx)
+            if a < groupStart then a = a + math.pi * 2 end
+            local relA = (a - groupStart) % (math.pi * 2)
+            tradial.lockedGroup = math.floor(relA / groupAngle) + 1
+            tradial.activeAction = -1
+        elseif distToCenter > midRadius and distToCenter <= outerRadius then
+            if tradial.lockedGroup == -1 then
+                local a = math.atan2(my - cy, mx - cx)
+                if a < groupStart then a = a + math.pi * 2 end
+                local relA = (a - groupStart) % (math.pi * 2)
+                tradial.lockedGroup = math.floor(relA / groupAngle) + 1
+            end
+            
+            local grp = groups[tostring(tradial.lockedGroup)]
+            local actionCount = grp and grp.count or 6
+            local actionAngle = (math.pi * 2) / actionCount
+            local actionStart = -math.pi / 2 - (actionAngle / 2)
+            
+            local a = math.atan2(my - cy, mx - cx)
+            if a < actionStart then a = a + math.pi * 2 end
+            local relA = (a - actionStart) % (math.pi * 2)
+            tradial.activeAction = math.floor(relA / actionAngle) + 1
+        end
+
+        if tradial.lockedGroup == -1 then tradial.lockedGroup = 1 end
+
+        -- ŒÚËÒÓ‚Í‡ ‚ÌÛÚÂÌÌÂ„Ó ÍÓÎ¸ˆ‡
+        for i = 1, groupCount do
+            local a_start = groupStart + (i - 1) * groupAngle
+            local a_end = groupStart + i * groupAngle
+            local isHovered = (tradial.lockedGroup == i)
+            
+            local secColor = imgui.ImVec4(sCol[1], sCol[2], sCol[3], baseAlpha * tradial.openAnim)
+            if isHovered then secColor = imgui.ImVec4(c_accent[1], c_accent[2], c_accent[3], (baseAlpha + 0.2) * tradial.openAnim) end
+            
+            DrawDonutSector(dl, cx, cy, midRadius, innerRadius, a_start, a_end, imgui.GetColorU32Vec4(secColor))
+            local bordColor = isHovered and imgui.GetColorU32Vec4(imgui.ImVec4(c_accent[1], c_accent[2], c_accent[3], 1.0 * tradial.openAnim)) or imgui.GetColorU32Vec4(imgui.ImVec4(0.2, 0.2, 0.2, 0.8 * tradial.openAnim))
+            rmath.DrawArcLine(dl, cx, cy, midRadius, a_start, a_end, bordColor, isHovered and 2.5 or 1.5)
+            dl:AddLine(imgui.ImVec2(cx + math.cos(a_start)*innerRadius, cy + math.sin(a_start)*innerRadius), imgui.ImVec2(cx + math.cos(a_start)*midRadius, cy + math.sin(a_start)*midRadius), imgui.GetColorU32Vec4(imgui.ImVec4(c_accent[1], c_accent[2], c_accent[3], 0.3 * tradial.openAnim)), 1.5)
+            
+            local grp = groups[tostring(i)]
+            local rawText = grp and u8(grp.name) or u8"√ÛÔÔ‡ "..i
+            local textX, textY = rmath.GetSectorCenter(cx, cy, innerRadius + (midRadius - innerRadius)/2, a_start, a_end)
+            local secText = wrapText(string.sub(rawText, 1, 10), 10)
+            local tSize = imgui.CalcTextSize(secText)
+            dl:AddText(imgui.ImVec2(textX - tSize.x/2, textY - tSize.y/2), imgui.GetColorU32Vec4(imgui.ImVec4(1, 1, 1, isHovered and 1.0 or 0.5)), secText)
+        end
+        
+        -- ŒÚËÒÓ‚Í‡ ‚ÌÂ¯ÌÂ„Ó ÍÓÎ¸ˆ‡
+        dl:AddCircle(imgui.ImVec2(cx, cy), outerRadius + 2, imgui.GetColorU32Vec4(imgui.ImVec4(c_accent[1], c_accent[2], c_accent[3], 0.3 * tradial.openAnim)), 48, 1.5)
+        dl:AddCircle(imgui.ImVec2(cx, cy), outerInnerRadius - 2, imgui.GetColorU32Vec4(imgui.ImVec4(c_accent[1], c_accent[2], c_accent[3], 0.3 * tradial.openAnim)), 48, 1.5)
+
+        local grp = groups[tostring(tradial.lockedGroup)]
+        local actionCount = grp and grp.count or 6
+        local actionAngle = (math.pi * 2) / actionCount
+        local actionStart = -math.pi / 2 - (actionAngle / 2)
+        
+        for j = 1, actionCount do
+            local a_start = actionStart + (j - 1) * actionAngle
+            local a_end = actionStart + j * actionAngle
+            local isHoveredOuter = (tradial.activeAction == j)
+            
+            local secColor = imgui.ImVec4(sCol[1], sCol[2], sCol[3], (baseAlpha - 0.1) * tradial.openAnim)
+            if isHoveredOuter then secColor = imgui.ImVec4(c_accent[1], c_accent[2], c_accent[3], (baseAlpha + 0.1) * tradial.openAnim) end
+            
+            DrawDonutSector(dl, cx, cy, outerRadius, outerInnerRadius, a_start, a_end, imgui.GetColorU32Vec4(secColor))
+            local bordColor = isHoveredOuter and imgui.GetColorU32Vec4(imgui.ImVec4(c_accent[1], c_accent[2], c_accent[3], 1.0 * tradial.openAnim)) or imgui.GetColorU32Vec4(imgui.ImVec4(0.2, 0.2, 0.2, 0.8 * tradial.openAnim))
+            rmath.DrawArcLine(dl, cx, cy, outerRadius, a_start, a_end, bordColor, isHoveredOuter and 2.5 or 1.5)
+            rmath.DrawArcLine(dl, cx, cy, outerInnerRadius, a_start, a_end, bordColor, isHoveredOuter and 2.5 or 1.5)
+            dl:AddLine(imgui.ImVec2(cx + math.cos(a_start)*outerInnerRadius, cy + math.sin(a_start)*outerInnerRadius), imgui.ImVec2(cx + math.cos(a_start)*outerRadius, cy + math.sin(a_start)*outerRadius), imgui.GetColorU32Vec4(imgui.ImVec4(c_accent[1], c_accent[2], c_accent[3], 0.3 * tradial.openAnim)), 1.5)
+            
+            local item = nil
+            if grp then 
+                local grpBinds = grp.binds or {}
+                item = resolvePath(grpBinds[tostring(j)]) 
+            end
+            local rawText = item and (item.name and u8(item.name) or u8"¡ËÌ‰") or u8"œÛÒÚÓ"
+            
+            local textX, textY = rmath.GetSectorCenter(cx, cy, outerInnerRadius + (outerRadius - outerInnerRadius)/2, a_start, a_end)
+            local secText = wrapText(string.sub(rawText, 1, 15), 10)
+            local tSize = imgui.CalcTextSize(secText)
+            dl:AddText(imgui.ImVec2(textX - tSize.x/2, textY - tSize.y/2), imgui.GetColorU32Vec4(imgui.ImVec4(1, 1, 1, isHoveredOuter and 1.0 or 0.6)), secText)
+        end
+    end
+
+    dl:AddCircleFilled(imgui.ImVec2(cx, cy), innerRadius, imgui.GetColorU32Vec4(imgui.ImVec4(sb_color[1], sb_color[2], sb_color[3], 1.0 * tradial.openAnim)), 32)
+    dl:AddCircle(imgui.ImVec2(cx, cy), innerRadius, imgui.GetColorU32Vec4(imgui.ImVec4(c_accent[1], c_accent[2], c_accent[3], 1.0 * tradial.openAnim)), 32, 2.5)
+
+    local centerText = "-"
+    if style == 0 and tradial.activeSector ~= -1 then
+        centerText = tostring(tradial.activeSector)
+    elseif style == 1 and tradial.lockedGroup ~= -1 then
+        centerText = tostring(tradial.lockedGroup)
+    end
+    
+    local ctSize = imgui.CalcTextSize(centerText)
+    dl:AddText(imgui.ImVec2(cx - ctSize.x/2, cy - ctSize.y/2), imgui.GetColorU32Vec4(imgui.ImVec4(c_accent[1], c_accent[2], c_accent[3], 1.0 * tradial.openAnim)), centerText)
+    if MFT.fonts.title then imgui.PopFont() end
+
+    imgui.End()
+    imgui.PopStyleVar(2)
+    imgui.PopStyleColor()
+end
+
+return tradial

@@ -1,12 +1,12 @@
 --[[
-    MFTools (Mordor Faction Tools) v1.0 (beta test)
+    MFTools (Mordor Faction Tools) v1.6 (beta test)
     Ãëàâíûé ôàéë (ßäðî + Àâòîóñòàíîâùèê + Àâòîîáíîâëåíèå)
     Ðàçðàáîò÷èê: Bryan Kogfield (Áîãäàí)
 ]]
 
 script_name("MFTools")
 script_author("Bryan Kogfield")
-script_version("1.0 (beta test)")
+script_version("1.6 (beta test)")
 
 require "lib.moonloader"
 local samp = require "lib.samp.events"
@@ -19,8 +19,8 @@ local vk = require "vkeys"
 -- ==========================================
 -- === ÍÀÑÒÐÎÉÊÈ ÀÂÒÎÎÁÍÎÂËÅÍÈß È ÇÀÃÐÓÇÊÈ ===
 -- ==========================================
-local SCRIPT_VERSION = 1.0 
-local SCRIPT_VERSION_TEXT = "1.0 (beta test)"
+local SCRIPT_VERSION = 1.6 
+local SCRIPT_VERSION_TEXT = "1.6 (beta test)"
 local UPDATE_JSON_URL = "https://raw.githubusercontent.com/AyatoCobra/MFTools/main/update.json" 
 local MAIN_SCRIPT_URL = "https://raw.githubusercontent.com/AyatoCobra/MFTools/main/MFTools.lua" 
 
@@ -142,7 +142,8 @@ local function checkForUpdates()
                 if success and data and tonumber(data.version) then
                     sampAddChatMessage("{3498DB}[MFTools] {FFFFFF}Òåêóùàÿ âåðñèÿ ñêðèïòà: {FFDD00}" .. SCRIPT_VERSION_TEXT, -1)
                     
-                    if tonumber(data.version) > SCRIPT_VERSION then
+                    -- ÈÇÌÅÍÅÍÈÅ ÇÄÅÑÜ: ~= âìåñòî > 
+                    if tonumber(data.version) ~= SCRIPT_VERSION then
                         updateAvailable = true
                         updateUrl = data.url
                         updateVersionText = data.version_text

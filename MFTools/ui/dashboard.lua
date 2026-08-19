@@ -61,7 +61,7 @@ function dashboard.processOverlayPlacement()
             MFT.state.isPlacingOverlay = false
             MFT.state.isMenuOpen = true
             engine.saveData()
-            sampAddChatMessage("{88FF88}[MFTools] {FFFFFF}Позиция оверлея сохранена!", -1)
+            sampAddChatMessage(u8:decode(u8"{88FF88}[MFTools] {FFFFFF}Позиция оверлея сохранена!"), -1)
         end
     end
     if MFT.state.isPlacingAROverlay and os.clock() > MFT.state.placingTimer then
@@ -69,7 +69,7 @@ function dashboard.processOverlayPlacement()
             MFT.state.isPlacingAROverlay = false
             MFT.state.isMenuOpen = true
             engine.saveData()
-            sampAddChatMessage("{88FF88}[MFTools] {FFFFFF}Позиция автодокладов сохранена!", -1)
+            sampAddChatMessage(u8:decode(u8"{88FF88}[MFTools] {FFFFFF}Позиция автодокладов сохранена!"), -1)
         end
     end
     if MFT.state.isPlacingSeqOverlay and os.clock() > MFT.state.placingTimer then
@@ -77,7 +77,7 @@ function dashboard.processOverlayPlacement()
             MFT.state.isPlacingSeqOverlay = false
             MFT.state.isMenuOpen = true
             engine.saveData()
-            sampAddChatMessage("{88FF88}[MFTools] {FFFFFF}Позиция пошаговых биндов сохранена!", -1)
+            sampAddChatMessage(u8:decode(u8"{88FF88}[MFTools] {FFFFFF}Позиция пошаговых биндов сохранена!"), -1)
         end
     end
 end
@@ -167,10 +167,12 @@ function dashboard.draw()
         imgui.TextColored(accentColorVec, "%s", "MFTools")
         if MFT.fonts.logo then imgui.PopFont() end
         
+        -- === ДИНАМИЧЕСКИЙ ВЫВОД ВЕРСИИ СКРИПТА ===
         if MFT.fonts.small then imgui.PushFont(MFT.fonts.small) end
         imgui.SetCursorPos(imgui.ImVec2(30, 44))
-        imgui.TextColored(imgui.ImVec4(0.6, 0.6, 0.6, 1.0), "%s", "v1.0 (beta test)")
+        imgui.TextColored(imgui.ImVec4(0.6, 0.6, 0.6, 1.0), "%s", "v" .. tostring(MFT.version or "1.0"))
         if MFT.fonts.small then imgui.PopFont() end
+        -- =========================================
         
         local tabNames = {u8"О скрипте", u8"База биндов", u8"Создание бинда", u8"Настройки", u8"Радиал меню", u8"Взаимодействия"}
         local tabWidth = 150
@@ -350,7 +352,7 @@ function dashboard.draw()
     
     tabs.drawModalsAndOverlay(dashboard, dt, accentColorVec, sw, sh)
     
-    -- === ВОЗВРАЩЕНО УВЕДОМЛЕНИЕ ДЛЯ СКРИНШОТОВ ===
+    -- УВЕДОМЛЕНИЯ УМНОГО СКРИНШОТА
     local showF8Notif = MFT.state.f8NotifTimer and os.clock() < MFT.state.f8NotifTimer
     dashboard.anims.f8Notif = dashboard.anims.f8Notif + ((showF8Notif and 1.0 or 0.0) - dashboard.anims.f8Notif) * math.min(1.0, 15.0 * dt)
     
@@ -385,14 +387,12 @@ function dashboard.draw()
         
         if MFT.fonts.title then imgui.PushFont(MFT.fonts.title) end
         imgui.SetCursorPosX((windowW - tSize1.x) / 2)
-        -- Безопасный рендер без крашей
         imgui.TextColored(imgui.ImVec4(c_accent[1], c_accent[2], c_accent[3], 1.0), "%s", text1)
         if MFT.fonts.title then imgui.PopFont() end
         
         imgui.Spacing()
         
         imgui.SetCursorPosX((windowW - tSize2.x) / 2)
-        -- Безопасный рендер без крашей
         imgui.TextColored(imgui.ImVec4(1.0, 1.0, 1.0, 1.0), "%s", text2)
 
         imgui.End()
@@ -400,7 +400,6 @@ function dashboard.draw()
         imgui.PopStyleVar(4)
         imgui.PopStyleColor(2)
     end
-    -- ==============================================
     
     local seq = MFT.state.seq
     local showSeqOvl = (MFT.settings.seqOverlay and MFT.settings.seqOverlay.enabled) or MFT.state.isPlacingSeqOverlay

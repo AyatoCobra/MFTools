@@ -1,7 +1,7 @@
 --[[
     MFTools (Mordor Faction Tools) v1.0 (beta test)
-    ГѓГ«Г ГўГ­Г»Г© ГґГ Г©Г« (ГџГ¤Г°Г® + ГЂГўГІГ®ГіГ±ГІГ Г­Г®ГўГ№ГЁГЄ + ГЂГўГІГ®Г®ГЎГ­Г®ГўГ«ГҐГ­ГЁГҐ)
-    ГђГ Г§Г°Г ГЎГ®ГІГ·ГЁГЄ: Bryan Kogfield (ГЃГ®ГЈГ¤Г Г­)
+    Главный файл (Ядро + Автоустановщик + Автообновление)
+    Разработчик: Bryan Kogfield (Богдан)
 ]]
 
 script_name("MFTools")
@@ -16,26 +16,26 @@ encoding.default = 'CP1251'
 local u8 = encoding.UTF8
 
 -- ==========================================
--- === ГЌГЂГ‘Г’ГђГЋГ‰ГЉГ€ ГЂГ‚Г’ГЋГЋГЃГЌГЋГ‚Г‹Г…ГЌГ€Гџ Г€ Г‡ГЂГѓГђГ“Г‡ГЉГ€ ===
+-- === НАСТРОЙКИ АВТООБНОВЛЕНИЯ И ЗАГРУЗКИ ===
 -- ==========================================
-local SCRIPT_VERSION = 1.2 
-local SCRIPT_VERSION_TEXT = "1.2 (beta test)"
+local SCRIPT_VERSION = 1.0 
+local SCRIPT_VERSION_TEXT = "1.0 (beta test)"
 local UPDATE_JSON_URL = "https://raw.githubusercontent.com/AyatoCobra/MFTools/main/update.json" 
 local MAIN_SCRIPT_URL = "https://raw.githubusercontent.com/AyatoCobra/MFTools/main/MFTools.lua" 
 
--- ГЏГ®Г«Г­Г»Г© Г±ГЇГЁГ±Г®ГЄ ГўГ±ГҐГµ ГґГ Г©Г«Г®Гў (ГЄГ®Г¤, Г¤Г Г­Г­Г»ГҐ, ГЁГ­ГІГҐГ°ГґГҐГ©Г± ГЁ ГЁГЄГ®Г­ГЄГЁ) Г¤Г«Гї Г ГўГІГ®Г¬Г ГІГЁГ·ГҐГ±ГЄГ®Г© Г§Г ГЈГ°ГіГ§ГЄГЁ Гі ГЁГЈГ°Г®ГЄГ®Гў
+-- Полный список всех файлов (код, данные, интерфейс и иконки) для автоматической загрузки у игроков
 local files_to_download = {
-    -- ГџГ¤Г°Г®
+    -- Ядро
     { path = "MFTools\\core\\engine.lua", url = "https://raw.githubusercontent.com/AyatoCobra/MFTools/main/MFTools/core/engine.lua" },
     { path = "MFTools\\core\\chatedit.lua", url = "https://raw.githubusercontent.com/AyatoCobra/MFTools/main/MFTools/core/chatedit.lua" },
     { path = "MFTools\\core\\formatter.lua", url = "https://raw.githubusercontent.com/AyatoCobra/MFTools/main/MFTools/core/formatter.lua" },
     { path = "MFTools\\core\\suggest.lua", url = "https://raw.githubusercontent.com/AyatoCobra/MFTools/main/MFTools/core/suggest.lua" },
     
-    -- Г„Г Г­Г­Г»ГҐ
+    -- Данные
     { path = "MFTools\\data\\commands.lua", url = "https://raw.githubusercontent.com/AyatoCobra/MFTools/main/MFTools/data/commands.lua" },
     { path = "MFTools\\data\\presets.lua", url = "https://raw.githubusercontent.com/AyatoCobra/MFTools/main/MFTools/data/presets.lua" },
     
-    -- Г€Г­ГІГҐГ°ГґГҐГ©Г± (UI)
+    -- Интерфейс (UI)
     { path = "MFTools\\ui\\dashboard.lua", url = "https://raw.githubusercontent.com/AyatoCobra/MFTools/main/MFTools/ui/dashboard.lua" },
     { path = "MFTools\\ui\\tab_settings.lua", url = "https://raw.githubusercontent.com/AyatoCobra/MFTools/main/MFTools/ui/tab_settings.lua" },
     { path = "MFTools\\ui\\tab_binds.lua", url = "https://raw.githubusercontent.com/AyatoCobra/MFTools/main/MFTools/ui/tab_binds.lua" },
@@ -49,13 +49,13 @@ local files_to_download = {
     { path = "MFTools\\ui\\tabs.lua", url = "https://raw.githubusercontent.com/AyatoCobra/MFTools/main/MFTools/ui/tabs.lua" },
     { path = "MFTools\\ui\\overlay_autoreport.lua", url = "https://raw.githubusercontent.com/AyatoCobra/MFTools/main/MFTools/ui/overlay_autoreport.lua" },
     
-    -- ГђГ Г¤ГЁГ Г«ГјГ­Г®ГҐ Г¬ГҐГ­Гѕ ГЁ Г¶ГҐГ«ГЁ
+    -- Радиальное меню и цели
     { path = "MFTools\\radial\\radial_menu.lua", url = "https://raw.githubusercontent.com/AyatoCobra/MFTools/main/MFTools/radial/radial_menu.lua" },
     { path = "MFTools\\radial\\radial_math.lua", url = "https://raw.githubusercontent.com/AyatoCobra/MFTools/main/MFTools/radial/radial_math.lua" },
     { path = "MFTools\\target\\core.lua", url = "https://raw.githubusercontent.com/AyatoCobra/MFTools/main/MFTools/target/core.lua" },
     { path = "MFTools\\target\\radial.lua", url = "https://raw.githubusercontent.com/AyatoCobra/MFTools/main/MFTools/target/radial.lua" },
 
-    -- Г€ГЄГ®Г­ГЄГЁ ГЁ Г Г±Г±ГҐГІГ» (ГЇГ ГЇГЄГ  assets)
+    -- Иконки и ассеты (папка assets)
     { path = "MFTools\\assets\\ALCATRAZ.png", url = "https://raw.githubusercontent.com/AyatoCobra/MFTools/main/MFTools/assets/ALCATRAZ.png" },
     { path = "MFTools\\assets\\FBI.png", url = "https://raw.githubusercontent.com/AyatoCobra/MFTools/main/MFTools/assets/FBI.png" },
     { path = "MFTools\\assets\\KB.png", url = "https://raw.githubusercontent.com/AyatoCobra/MFTools/main/MFTools/assets/KB.png" },
@@ -102,14 +102,16 @@ end
 
 local function downloadDependencies()
     createDirectories()
-    sampAddChatMessage(u8:decode(u8"{3498DB}[MFTools] {FFFFFF}ГЌГ Г·Г Г«Г Г±Гј ГЇГҐГ°ГўГЁГ·Г­Г Гї ГіГ±ГІГ Г­Г®ГўГЄГ  ГЄГ®Г¬ГЇГ®Г­ГҐГ­ГІГ®Гў. ГЏГ®Г¦Г Г«ГіГ©Г±ГІГ , ГЇГ®Г¤Г®Г¦Г¤ГЁГІГҐ..."), -1)
+    sampAddChatMessage("{3498DB}[MFTools] {FFFFFF}Началась первичная установка компонентов. Пожалуйста, подождите...", -1)
     
     for i, file in ipairs(files_to_download) do
         local dest = getWorkingDirectory() .. "\\" .. file.path
         if not doesFileExist(dest) then
-            downloadUrlToFile(file.url, dest, function(id, status, p1, p2)
+            -- Добавлен обход кэша для первичной установки
+            local urlWithNoCache = file.url .. "?t=" .. os.time()
+            downloadUrlToFile(urlWithNoCache, dest, function(id, status, p1, p2)
                 if status == dlstatus.STATUS_ENDDOWNLOADDATA then
-                    print("MFTools: Г‡Г ГЈГ°ГіГ¦ГҐГ­ ГґГ Г©Г« " .. file.path)
+                    print("MFTools: Загружен файл " .. file.path)
                 end
             end)
         end
@@ -124,12 +126,13 @@ local function downloadDependencies()
         end
     end
     
-    sampAddChatMessage(u8:decode(u8"{88FF88}[MFTools] {FFFFFF}Г“Г±ГІГ Г­Г®ГўГЄГ  ГіГ±ГЇГҐГёГ­Г® Г§Г ГўГҐГ°ГёГҐГ­Г ! Г‘ГЄГ°ГЁГЇГІ ГЇГҐГ°ГҐГ§Г ГЈГ°ГіГ¦Г ГҐГІГ±Гї..."), -1)
+    sampAddChatMessage("{88FF88}[MFTools] {FFFFFF}Установка успешно завершена! Скрипт перезагружается...", -1)
     thisScript():reload()
 end
 
 local function checkForUpdates()
     local jsonPath = getWorkingDirectory() .. "\\mft_update.json"
+    -- Обход кэша для JSON работает отлично
     local urlWithNoCache = UPDATE_JSON_URL .. "?t=" .. os.time()
     
     downloadUrlToFile(urlWithNoCache, jsonPath, function(id, status, p1, p2)
@@ -144,19 +147,19 @@ local function checkForUpdates()
                 local success, data = pcall(decode, content)
                 
                 if success and data and tonumber(data.version) then
-                    sampAddChatMessage(u8:decode(u8"{3498DB}[MFTools] {FFFFFF}Г’ГҐГЄГіГ№Г Гї ГўГҐГ°Г±ГЁГї Г±ГЄГ°ГЁГЇГІГ : {FFDD00}" .. SCRIPT_VERSION_TEXT), -1)
+                    sampAddChatMessage("{3498DB}[MFTools] {FFFFFF}Текущая версия скрипта: {FFDD00}" .. SCRIPT_VERSION_TEXT, -1)
                     
                     if tonumber(data.version) > SCRIPT_VERSION then
                         updateAvailable = true
                         updateUrl = data.url
                         updateVersionText = data.version_text
-                        sampAddChatMessage(u8:decode(u8"{3498DB}[MFTools] {FFFFFF}Г„Г®Г±ГІГіГЇГ­Г® Г®ГЎГ­Г®ГўГ«ГҐГ­ГЁГҐ: {FFDD00}" .. updateVersionText), -1)
-                        sampAddChatMessage(u8:decode(u8"{3498DB}[MFTools] {FFFFFF}ГЌГ ГЇГЁГёГЁГІГҐ ГЄГ®Г¬Г Г­Г¤Гі Гў Г·Г ГІ {FFDD00}/mft_up{FFFFFF}, Г·ГІГ®ГЎГ» ГіГ±ГІГ Г­Г®ГўГЁГІГј ГҐГЈГ®."), -1)
+                        sampAddChatMessage("{3498DB}[MFTools] {FFFFFF}Доступно обновление: {FFDD00}" .. updateVersionText, -1)
+                        sampAddChatMessage("{3498DB}[MFTools] {FFFFFF}Напишите команду в чат {FFDD00}/mft_up{FFFFFF}, чтобы установить его.", -1)
                     else
-                        sampAddChatMessage(u8:decode(u8"{3498DB}[MFTools] {FFFFFF}ГЏГ°Г®ГўГҐГ°ГЄГ  Г®ГЎГ­Г®ГўГ«ГҐГ­ГЁГ© ГЇГ°Г®ГёГ«Г  ГіГ±ГЇГҐГёГ­Г®, Г®ГЎГ­Г®ГўГ«ГҐГ­ГЁГ© Г­ГҐ Г®ГЎГ­Г Г°ГіГ¦ГҐГ­Г®."), -1)
+                        sampAddChatMessage("{3498DB}[MFTools] {FFFFFF}Проверка обновлений прошла успешно, обновлений не обнаружено.", -1)
                     end
                 else
-                    sampAddChatMessage(u8:decode(u8"{FF0000}[MFTools] ГЋГёГЁГЎГЄГ  Г·ГІГҐГ­ГЁГї update.json. ГЏГ°Г®ГўГҐГ°ГјГІГҐ Г±ГЁГ­ГІГ ГЄГ±ГЁГ± ГґГ Г©Г«Г  Г­Г  GitHub!"), -1)
+                    sampAddChatMessage("{FF0000}[MFTools] Ошибка чтения update.json. Проверьте синтаксис файла на GitHub!", -1)
                 end
             end
         end
@@ -262,7 +265,7 @@ local uiFrame = imgui.OnFrame(
 function main()
     while not isSampAvailable() do wait(100) end
     
-    sampAddChatMessage(u8:decode(u8"{3498DB}[MFTools v" .. SCRIPT_VERSION_TEXT .. "] {FFFFFF}Г‘ГЄГ°ГЁГЇГІ ГіГ±ГЇГҐГёГ­Г® Г§Г ГЈГ°ГіГ¦ГҐГ­! ГЊГҐГ­Гѕ: {FFDD00}/mft"), -1)
+    sampAddChatMessage("{3498DB}[MFTools v" .. SCRIPT_VERSION_TEXT .. "] {FFFFFF}Скрипт успешно загружен! Меню: {FFDD00}/mft", -1)
     
     lua_thread.create(function()
         wait(2000)
@@ -275,36 +278,44 @@ function main()
 
     sampRegisterChatCommand("mft_up", function() 
         if updateAvailable then
-            sampAddChatMessage(u8:decode(u8"{3498DB}[MFTools] {FFFFFF}ГЌГ Г·ГЁГ­Г ГҐГ¬ Г§Г ГЈГ°ГіГ§ГЄГі Г®ГЎГ­Г®ГўГ«ГҐГ­ГЁГї. ГќГІГ® Г§Г Г©Г¬ГҐГІ ГЇГ Г°Гі Г±ГҐГЄГіГ­Г¤..."), -1)
+            sampAddChatMessage("{3498DB}[MFTools] {FFFFFF}Начинаем загрузку обновления. Это займет пару секунд...", -1)
             
             lua_thread.create(function()
+                -- 1. Скачиваем главный файл с ОБХОДОМ КЭША
                 local scriptPath = thisScript().path
                 local mainScriptDownloaded = false
-                downloadUrlToFile(updateUrl, scriptPath, function(id, status)
+                local mainUrlWithNoCache = updateUrl .. "?t=" .. os.time()
+                
+                downloadUrlToFile(mainUrlWithNoCache, scriptPath, function(id, status)
                     if status == dlstatus.STATUS_ENDDOWNLOADDATA then
                         mainScriptDownloaded = true
                     end
                 end)
                 
+                -- 2. Скачиваем все зависимые файлы с ОБХОДОМ КЭША
                 local totalFiles = #files_to_download
                 local downloaded = 0
                 
                 for _, file in ipairs(files_to_download) do
                     local dest = getWorkingDirectory() .. "\\" .. file.path
-                    downloadUrlToFile(file.url, dest, function(id, status)
+                    local fileUrlWithNoCache = file.url .. "?t=" .. os.time()
+                    
+                    downloadUrlToFile(fileUrlWithNoCache, dest, function(id, status)
                         if status == dlstatus.STATUS_ENDDOWNLOADDATA then
                             downloaded = downloaded + 1
                         end
                     end)
                 end
                 
+                -- 3. Ждем завершения загрузок
                 while downloaded < totalFiles or not mainScriptDownloaded do wait(100) end
                 
-                sampAddChatMessage(u8:decode(u8"{88FF88}[MFTools] {FFFFFF}Г‚Г±ГҐ ГґГ Г©Г«Г» ГіГ±ГЇГҐГёГ­Г® Г®ГЎГ­Г®ГўГ«ГҐГ­Г»! Г‘ГЄГ°ГЁГЇГІ ГЇГҐГ°ГҐГ§Г ГЈГ°ГіГ¦Г ГҐГІГ±Гї..."), -1)
+                -- 4. Перезагрузка
+                sampAddChatMessage("{88FF88}[MFTools] {FFFFFF}Все файлы успешно обновлены! Скрипт перезагружается...", -1)
                 thisScript():reload()
             end)
         else
-            sampAddChatMessage(u8:decode(u8"{FF0000}[MFTools] {FFFFFF}ГЌГҐГІ Г¤Г®Г±ГІГіГЇГ­Г»Гµ Г®ГЎГ­Г®ГўГ«ГҐГ­ГЁГ© Г¤Г«Гї Г§Г ГЈГ°ГіГ§ГЄГЁ."), -1)
+            sampAddChatMessage("{FF0000}[MFTools] {FFFFFF}Нет доступных обновлений для загрузки.", -1)
         end
     end)
     

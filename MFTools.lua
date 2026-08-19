@@ -1,12 +1,12 @@
 --[[
-    MFTools (Mordor Faction Tools) v1.5 (beta test)
+    MFTools (Mordor Faction Tools) v1.0 (beta test)
     Главный файл (Ядро + Автоустановщик + Автообновление)
     Разработчик: Bryan Kogfield (Богдан)
 ]]
 
 script_name("MFTools")
 script_author("Bryan Kogfield")
-script_version("1.5 (beta test)")
+script_version("1.0 (beta test)")
 
 require "lib.moonloader"
 local samp = require "lib.samp.events"
@@ -14,13 +14,13 @@ local dlstatus = require('moonloader').download_status
 local encoding = require "encoding"
 encoding.default = 'CP1251'
 local u8 = encoding.UTF8
-local vk = require "vkeys" -- ДОБАВЛЕНА БИБЛИОТЕКА КЛАВИШ
+local vk = require "vkeys"
 
 -- ==========================================
 -- === НАСТРОЙКИ АВТООБНОВЛЕНИЯ И ЗАГРУЗКИ ===
 -- ==========================================
-local SCRIPT_VERSION = 1.5 
-local SCRIPT_VERSION_TEXT = "1.5 (beta test)"
+local SCRIPT_VERSION = 1.0 
+local SCRIPT_VERSION_TEXT = "1.0 (beta test)"
 local UPDATE_JSON_URL = "https://raw.githubusercontent.com/AyatoCobra/MFTools/main/update.json" 
 local MAIN_SCRIPT_URL = "https://raw.githubusercontent.com/AyatoCobra/MFTools/main/MFTools.lua" 
 
@@ -103,9 +103,8 @@ end
 
 local function downloadDependencies()
     createDirectories()
-    sampAddChatMessage(u8:decode(u8"{3498DB}[MFTools] {FFFFFF}Началась установка компонентов (около 15 сек). Пожалуйста, подождите..."), -1)
+    sampAddChatMessage("{3498DB}[MFTools] {FFFFFF}Началась установка компонентов (около 15 сек). Пожалуйста, подождите...", -1)
     
-    -- Бронебойное последовательное скачивание для установки
     for i, file in ipairs(files_to_download) do
         local dest = getWorkingDirectory() .. "\\" .. file.path
         if not doesFileExist(dest) then
@@ -116,13 +115,12 @@ local function downloadDependencies()
                 if status == dlstatus.STATUS_ENDDOWNLOADDATA then isDone = true end
             end)
             
-            -- Таймаут 5 секунд на каждый файл, чтобы скрипт никогда не завис
             local timeout = os.clock() + 5.0
             while not isDone and os.clock() < timeout do wait(50) end
         end
     end
     
-    sampAddChatMessage(u8:decode(u8"{88FF88}[MFTools] {FFFFFF}Установка успешно завершена! Скрипт перезагружается..."), -1)
+    sampAddChatMessage("{88FF88}[MFTools] {FFFFFF}Установка успешно завершена! Скрипт перезагружается...", -1)
     thisScript():reload()
 end
 
@@ -142,19 +140,19 @@ local function checkForUpdates()
                 local success, data = pcall(decode, content)
                 
                 if success and data and tonumber(data.version) then
-                    sampAddChatMessage(u8:decode(u8"{3498DB}[MFTools] {FFFFFF}Текущая версия скрипта: {FFDD00}" .. SCRIPT_VERSION_TEXT), -1)
+                    sampAddChatMessage("{3498DB}[MFTools] {FFFFFF}Текущая версия скрипта: {FFDD00}" .. SCRIPT_VERSION_TEXT, -1)
                     
                     if tonumber(data.version) > SCRIPT_VERSION then
                         updateAvailable = true
                         updateUrl = data.url
                         updateVersionText = data.version_text
-                        sampAddChatMessage(u8:decode(u8"{3498DB}[MFTools] {FFFFFF}Доступно обновление: {FFDD00}" .. updateVersionText), -1)
-                        sampAddChatMessage(u8:decode(u8"{3498DB}[MFTools] {FFFFFF}Напишите команду в чат {FFDD00}/mft_up{FFFFFF}, чтобы установить его."), -1)
+                        sampAddChatMessage("{3498DB}[MFTools] {FFFFFF}Доступно обновление: {FFDD00}" .. updateVersionText, -1)
+                        sampAddChatMessage("{3498DB}[MFTools] {FFFFFF}Напишите команду в чат {FFDD00}/mft_up{FFFFFF}, чтобы установить его.", -1)
                     else
-                        sampAddChatMessage(u8:decode(u8"{3498DB}[MFTools] {FFFFFF}Проверка обновлений прошла успешно, обновлений не обнаружено."), -1)
+                        sampAddChatMessage("{3498DB}[MFTools] {FFFFFF}Проверка обновлений прошла успешно, обновлений не обнаружено.", -1)
                     end
                 else
-                    sampAddChatMessage(u8:decode(u8"{FF0000}[MFTools] Ошибка чтения update.json. Проверьте синтаксис файла на GitHub!"), -1)
+                    sampAddChatMessage("{FF0000}[MFTools] Ошибка чтения update.json. Проверьте синтаксис файла на GitHub!", -1)
                 end
             end
         end
@@ -260,7 +258,7 @@ local uiFrame = imgui.OnFrame(
 function main()
     while not isSampAvailable() do wait(100) end
     
-    sampAddChatMessage(u8:decode(u8"{3498DB}[MFTools v" .. SCRIPT_VERSION_TEXT .. "] {FFFFFF}Скрипт успешно загружен! Меню: {FFDD00}/mft"), -1)
+    sampAddChatMessage("{3498DB}[MFTools v" .. SCRIPT_VERSION_TEXT .. "] {FFFFFF}Скрипт успешно загружен! Меню: {FFDD00}/mft", -1)
     
     lua_thread.create(function()
         wait(2000)
@@ -273,10 +271,9 @@ function main()
 
     sampRegisterChatCommand("mft_up", function() 
         if updateAvailable then
-            sampAddChatMessage(u8:decode(u8"{3498DB}[MFTools] {FFFFFF}Загрузка обновления (около 10-15 сек). Пожалуйста, не закрывайте игру..."), -1)
+            sampAddChatMessage("{3498DB}[MFTools] {FFFFFF}Загрузка обновления (около 10-15 сек). Пожалуйста, не закрывайте игру...", -1)
             
             lua_thread.create(function()
-                -- 1. Скачиваем главный файл с защитой от зависания
                 local scriptPath = thisScript().path
                 local mainDone = false
                 downloadUrlToFile(updateUrl .. "?t=" .. os.time(), scriptPath, function(id, status)
@@ -285,7 +282,6 @@ function main()
                 local timeout = os.clock() + 5.0
                 while not mainDone and os.clock() < timeout do wait(50) end
                 
-                -- 2. Скачиваем все зависимые файлы ПО ОЧЕРЕДИ
                 for _, file in ipairs(files_to_download) do
                     local dest = getWorkingDirectory() .. "\\" .. file.path
                     local fileDone = false
@@ -293,16 +289,15 @@ function main()
                         if status == dlstatus.STATUS_ENDDOWNLOADDATA then fileDone = true end
                     end)
                     
-                    -- Таймаут 3 секунды на каждый файл
                     local fileTimeout = os.clock() + 3.0
                     while not fileDone and os.clock() < fileTimeout do wait(50) end
                 end
                 
-                sampAddChatMessage(u8:decode(u8"{88FF88}[MFTools] {FFFFFF}Все файлы успешно обновлены! Скрипт перезагружается..."), -1)
+                sampAddChatMessage("{88FF88}[MFTools] {FFFFFF}Все файлы успешно обновлены! Скрипт перезагружается...", -1)
                 thisScript():reload()
             end)
         else
-            sampAddChatMessage(u8:decode(u8"{FF0000}[MFTools] {FFFFFF}Нет доступных обновлений для загрузки."), -1)
+            sampAddChatMessage("{FF0000}[MFTools] {FFFFFF}Нет доступных обновлений для загрузки.", -1)
         end
     end)
     
@@ -340,7 +335,6 @@ function onWindowMessage(msg, wparam, lparam)
             consumeWindowMessage(true, false) -- Блокируем ESC, чтобы игра не ушла в паузу
             
             if msg == 0x0101 then -- Логику выполняем только при отпускании клавиши (безопаснее)
-                -- Проверяем, не биндит ли игрок в данный момент какую-то кнопку
                 local isCapturing = MFT.state.capturingSmartScreenKey or MFT.state.capturingSeqKey or 
                                     MFT.state.capturingRadialHotkey or MFT.state.capturingTargetRadial or 
                                     (MFT.state.capturingTargetQuick and MFT.state.capturingTargetQuick > 0) or 
@@ -349,17 +343,17 @@ function onWindowMessage(msg, wparam, lparam)
                 if isCapturing then
                     -- Ничего не делаем, интерфейс сам снимет бинд по ESC
                 elseif MFT.state.colorPickerActive then
-                    MFT.state.colorPickerActive = false -- Закрываем палитру
+                    MFT.state.colorPickerActive = false
                 elseif MFT.state.isCustomThemeOpen then
-                    MFT.state.isCustomThemeOpen = false -- Закрываем модалку создания темы
+                    MFT.state.isCustomThemeOpen = false
                 elseif MFT.state.editingModalIndex and MFT.state.editingModalIndex ~= -1 then
-                    MFT.state.editingModalIndex = -1 -- Закрываем модалку редактирования
+                    MFT.state.editingModalIndex = -1
                 elseif MFT.state.previewPresetId and MFT.state.previewPresetId ~= -1 then
-                    MFT.state.previewPresetId = -1 -- Закрываем модалку пресетов
+                    MFT.state.previewPresetId = -1
                 elseif MFT.state.dialogActive then
-                    MFT.state.dialogActive = false -- Закрываем диалоговое окно
+                    MFT.state.dialogActive = false
                 else
-                    MFT.state.isMenuOpen = false -- Если открыто только главное меню - закрываем его
+                    MFT.state.isMenuOpen = false
                 end
             end
         end

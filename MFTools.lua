@@ -21,7 +21,10 @@ local vk = require "vkeys"
 -- ==========================================
 local SCRIPT_VERSION = 1.7 
 local SCRIPT_VERSION_TEXT = "1.7 (beta test)"
+
+-- JSON проверяем через githack для моментальной реакции
 local UPDATE_JSON_URL = "https://raw.githack.com/AyatoCobra/MFTools/main/update.json" 
+-- Основные файлы качаем с официального github для стабильности
 local MAIN_SCRIPT_URL = "https://raw.githubusercontent.com/AyatoCobra/MFTools/main/MFTools.lua" 
 
 -- Полный список всех файлов
@@ -126,7 +129,9 @@ end
 
 local function checkForUpdates()
     local jsonPath = getWorkingDirectory() .. "\\mft_update.json"
-    local urlWithNoCache = UPDATE_JSON_URL .. "?t=" .. os.time()
+    
+    -- Максимально агрессивный сброс кэша: время + случайное число
+    local urlWithNoCache = UPDATE_JSON_URL .. "?nocache=" .. os.time() .. "&rnd=" .. math.random(10000, 99999)
     
     downloadUrlToFile(urlWithNoCache, jsonPath, function(id, status, p1, p2)
         if status == dlstatus.STATUS_ENDDOWNLOADDATA then
@@ -142,6 +147,7 @@ local function checkForUpdates()
                 if success and data and tonumber(data.version) then
                     sampAddChatMessage("{3498DB}[MFTools] {FFFFFF}Текущая версия скрипта: {FFDD00}" .. SCRIPT_VERSION_TEXT, -1)
                     
+                    -- Проверяем на любое отличие версий (~=)
                     if tonumber(data.version) ~= SCRIPT_VERSION then
                         updateAvailable = true
                         updateUrl = data.url
@@ -149,7 +155,6 @@ local function checkForUpdates()
                         sampAddChatMessage("{3498DB}[MFTools] {FFFFFF}Доступно обновление: {FFDD00}" .. updateVersionText, -1)
                         sampAddChatMessage("{3498DB}[MFTools] {FFFFFF}Напишите команду в чат {FFDD00}/mft_up{FFFFFF}, чтобы установить его.", -1)
                     else
-                        -- Если версия совпадает, сбрасываем флаг (чтобы не висело старое предложение обновиться)
                         updateAvailable = false
                         sampAddChatMessage("{3498DB}[MFTools] {FFFFFF}Проверка обновлений прошла успешно, обновлений не обнаружено.", -1)
                     end
@@ -271,7 +276,6 @@ function main()
         MFT.state.isMenuOpen = not MFT.state.isMenuOpen 
     end)
 
-    -- НОВАЯ КОМАНДА: Принудительная проверка обновлений прямо сейчас
     sampRegisterChatCommand("mft_check", function()
         sampAddChatMessage("{3498DB}[MFTools] {FFFFFF}Проверяем наличие обновлений на сервере...", -1)
         checkForUpdates()

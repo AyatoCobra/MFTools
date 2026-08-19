@@ -36,5 +36,5 @@ return {
     "/freeze", "/unfreeze", "/actiondel", "/auninvite", "/kick", "/mute", "/offmute", "/offunmute", "/prison",
     "/offprison", "/offunprison", "/jail", "/unjail", "/bgun", "/unbgun", "/warn", "/unwarn", "/offwarn",
     "/ban", "/offban", "/unban", "/banip", "/unbanip", "/givecupon", "/resetcupon", "/alldelv", "/respallv", "/setweather",
-    "/createobj", "/editobj", "/delobj", "/rdelobj", "/delallobj", "/objlist", "/clone", "/gotoobj", "/mat", "/jb"
+    "/createobj", "/editobj", "/delobj", "/rdelobj", "/delallobj", "/objlist", "/clone", "/gotoobj", "/mat", "/jb", "/mft_up", "/mft_check"
 }

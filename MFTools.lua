@@ -16,6 +16,7 @@ local dlstatus = require('moonloader').download_status
 -- === НАСТРОЙКИ АВТООБНОВЛЕНИЯ И ЗАГРУЗКИ ===
 -- ==========================================
 local SCRIPT_VERSION = 1.0 
+local SCRIPT_VERSION_TEXT = "1.0 (beta test)"
 local UPDATE_JSON_URL = "https://raw.githubusercontent.com/AyatoCobra/MFTools/main/update.json" 
 local MAIN_SCRIPT_URL = "https://raw.githubusercontent.com/AyatoCobra/MFTools/main/MFTools.lua" 
 
@@ -138,12 +139,16 @@ local function checkForUpdates()
                 local success, data = pcall(decode, content)
                 
                 if success and data and tonumber(data.version) then
+                    sampAddChatMessage("{3498DB}[MFTools] {FFFFFF}Текущая версия скрипта: {FFDD00}" .. SCRIPT_VERSION_TEXT, -1)
+                    
                     if tonumber(data.version) > SCRIPT_VERSION then
                         updateAvailable = true
                         updateUrl = data.url
                         updateVersionText = data.version_text
-                        sampAddChatMessage("{3498DB}[MFTools] {FFFFFF}Доступно новое обновление: {FFDD00}" .. updateVersionText, -1)
-                        sampAddChatMessage("{3498DB}[MFTools] {FFFFFF}Введите {FFDD00}/mft update{FFFFFF}, чтобы установить его.", -1)
+                        sampAddChatMessage("{3498DB}[MFTools] {FFFFFF}Доступно обновление: {FFDD00}" .. updateVersionText, -1)
+                        sampAddChatMessage("{3498DB}[MFTools] {FFFFFF}Напишите команду в чат {FFDD00}/mft_up{FFFFFF}, чтобы установить его.", -1)
+                    else
+                        sampAddChatMessage("{3498DB}[MFTools] {FFFFFF}Проверка обновлений прошла успешно, обновлений не обнаружено.", -1)
                     end
                 end
             end
@@ -256,18 +261,46 @@ function main()
         checkForUpdates()
     end)
 
-    sampRegisterChatCommand("mft", function(arg) 
-        if arg == "update" and updateAvailable then
-            sampAddChatMessage("{3498DB}[MFTools] {FFFFFF}Начинаем загрузку обновления...", -1)
-            local scriptPath = thisScript().path
-            downloadUrlToFile(updateUrl, scriptPath, function(id, status, p1, p2)
-                if status == dlstatus.STATUS_ENDDOWNLOADDATA then
-                    sampAddChatMessage("{88FF88}[MFTools] {FFFFFF}Обновление загружено! Скрипт перезагружается...", -1)
-                    thisScript():reload()
+    sampRegisterChatCommand("mft", function() 
+        MFT.state.isMenuOpen = not MFT.state.isMenuOpen 
+    end)
+
+    sampRegisterChatCommand("mft_up", function() 
+        if updateAvailable then
+            sampAddChatMessage("{3498DB}[MFTools] {FFFFFF}Начинаем загрузку обновления. Это займет пару секунд...", -1)
+            
+            lua_thread.create(function()
+                -- 1. Скачиваем главный файл MFTools.lua
+                local scriptPath = thisScript().path
+                local mainScriptDownloaded = false
+                downloadUrlToFile(updateUrl, scriptPath, function(id, status)
+                    if status == dlstatus.STATUS_ENDDOWNLOADDATA then
+                        mainScriptDownloaded = true
+                    end
+                end)
+                
+                -- 2. Принудительно скачиваем и перезаписываем ВСЕ зависимые файлы
+                local totalFiles = #files_to_download
+                local downloaded = 0
+                
+                for _, file in ipairs(files_to_download) do
+                    local dest = getWorkingDirectory() .. "\\" .. file.path
+                    downloadUrlToFile(file.url, dest, function(id, status)
+                        if status == dlstatus.STATUS_ENDDOWNLOADDATA then
+                            downloaded = downloaded + 1
+                        end
+                    end)
                 end
+                
+                -- 3. Ждем, пока счетчик скачанных файлов не сравняется с общим количеством и не скачается ядро
+                while downloaded < totalFiles or not mainScriptDownloaded do wait(100) end
+                
+                -- 4. Перезагружаем скрипт только когда всё 100% скачалось
+                sampAddChatMessage("{88FF88}[MFTools] {FFFFFF}Все файлы успешно обновлены! Скрипт перезагружается...", -1)
+                thisScript():reload()
             end)
         else
-            MFT.state.isMenuOpen = not MFT.state.isMenuOpen 
+            sampAddChatMessage("{FF0000}[MFTools] {FFFFFF}Нет доступных обновлений для загрузки.", -1)
         end
     end)
     

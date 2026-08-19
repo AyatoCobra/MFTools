@@ -1,12 +1,12 @@
 --[[
-    MFTools (Mordor Faction Tools) v1.6 (beta test)
+    MFTools (Mordor Faction Tools) v1.7 (beta test)
     Главный файл (Ядро + Автоустановщик + Автообновление)
     Разработчик: Bryan Kogfield (Богдан)
 ]]
 
 script_name("MFTools")
 script_author("Bryan Kogfield")
-script_version("1.6 (beta test)")
+script_version("1.7 (beta test)")
 
 require "lib.moonloader"
 local samp = require "lib.samp.events"
@@ -19,12 +19,9 @@ local vk = require "vkeys"
 -- ==========================================
 -- === НАСТРОЙКИ АВТООБНОВЛЕНИЯ И ЗАГРУЗКИ ===
 -- ==========================================
-local SCRIPT_VERSION = 1.6 
-local SCRIPT_VERSION_TEXT = "1.6 (beta test)"
-
--- JSON проверяем через githack для моментальной реакции
+local SCRIPT_VERSION = 1.7 
+local SCRIPT_VERSION_TEXT = "1.7 (beta test)"
 local UPDATE_JSON_URL = "https://raw.githack.com/AyatoCobra/MFTools/main/update.json" 
--- Основные файлы качаем с официального github для стабильности
 local MAIN_SCRIPT_URL = "https://raw.githubusercontent.com/AyatoCobra/MFTools/main/MFTools.lua" 
 
 -- Полный список всех файлов
@@ -152,6 +149,8 @@ local function checkForUpdates()
                         sampAddChatMessage("{3498DB}[MFTools] {FFFFFF}Доступно обновление: {FFDD00}" .. updateVersionText, -1)
                         sampAddChatMessage("{3498DB}[MFTools] {FFFFFF}Напишите команду в чат {FFDD00}/mft_up{FFFFFF}, чтобы установить его.", -1)
                     else
+                        -- Если версия совпадает, сбрасываем флаг (чтобы не висело старое предложение обновиться)
+                        updateAvailable = false
                         sampAddChatMessage("{3498DB}[MFTools] {FFFFFF}Проверка обновлений прошла успешно, обновлений не обнаружено.", -1)
                     end
                 else
@@ -272,6 +271,12 @@ function main()
         MFT.state.isMenuOpen = not MFT.state.isMenuOpen 
     end)
 
+    -- НОВАЯ КОМАНДА: Принудительная проверка обновлений прямо сейчас
+    sampRegisterChatCommand("mft_check", function()
+        sampAddChatMessage("{3498DB}[MFTools] {FFFFFF}Проверяем наличие обновлений на сервере...", -1)
+        checkForUpdates()
+    end)
+
     sampRegisterChatCommand("mft_up", function() 
         if updateAvailable then
             sampAddChatMessage("{3498DB}[MFTools] {FFFFFF}Загрузка обновления (около 10-15 сек). Пожалуйста, не закрывайте игру...", -1)
@@ -300,7 +305,7 @@ function main()
                 thisScript():reload()
             end)
         else
-            sampAddChatMessage("{FF0000}[MFTools] {FFFFFF}Нет доступных обновлений для загрузки.", -1)
+            sampAddChatMessage("{FF0000}[MFTools] {FFFFFF}Нет доступных обновлений. Введите {FFDD00}/mft_check{FFFFFF} для проверки сервера.", -1)
         end
     end)
     

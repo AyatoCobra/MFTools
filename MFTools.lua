@@ -1,5 +1,5 @@
 --[[
-    MFTools (Mordor Faction Tools) v1.3 (beta test)
+    MFTools (Mordor Faction Tools) v1.2 (beta test)
     Главный файл (Ядро + Автоустановщик + Автообновление)
     Разработчик: Bryan Kogfield (Богдан)
 ]]
@@ -23,7 +23,7 @@ local SCRIPT_VERSION_TEXT = "1.3 (beta test)"
 local UPDATE_JSON_URL = "https://raw.githubusercontent.com/AyatoCobra/MFTools/main/update.json" 
 local MAIN_SCRIPT_URL = "https://raw.githubusercontent.com/AyatoCobra/MFTools/main/MFTools.lua" 
 
--- Полный список всех файлов (код, данные, интерфейс и иконки) для автоматической загрузки у игроков
+-- Полный список всех файлов
 local files_to_download = {
     -- Ядро
     { path = "MFTools\\core\\engine.lua", url = "https://raw.githubusercontent.com/AyatoCobra/MFTools/main/MFTools/core/engine.lua" },
@@ -102,37 +102,31 @@ end
 
 local function downloadDependencies()
     createDirectories()
-    sampAddChatMessage("{3498DB}[MFTools] {FFFFFF}Началась первичная установка компонентов. Пожалуйста, подождите...", -1)
+    sampAddChatMessage(u8:decode(u8"{3498DB}[MFTools] {FFFFFF}Началась установка компонентов (около 15 сек). Пожалуйста, подождите..."), -1)
     
+    -- Бронебойное последовательное скачивание для установки
     for i, file in ipairs(files_to_download) do
         local dest = getWorkingDirectory() .. "\\" .. file.path
         if not doesFileExist(dest) then
-            -- Добавлен обход кэша для первичной установки
-            local urlWithNoCache = file.url .. "?t=" .. os.time()
-            downloadUrlToFile(urlWithNoCache, dest, function(id, status, p1, p2)
-                if status == dlstatus.STATUS_ENDDOWNLOADDATA then
-                    print("MFTools: Загружен файл " .. file.path)
-                end
+            local isDone = false
+            local fileUrlWithNoCache = file.url .. "?t=" .. os.time()
+            
+            downloadUrlToFile(fileUrlWithNoCache, dest, function(id, status)
+                if status == dlstatus.STATUS_ENDDOWNLOADDATA then isDone = true end
             end)
+            
+            -- Таймаут 5 секунд на каждый файл, чтобы скрипт никогда не завис
+            local timeout = os.clock() + 5.0
+            while not isDone and os.clock() < timeout do wait(50) end
         end
     end
     
-    local allDownloaded = false
-    while not allDownloaded do
-        wait(1000)
-        allDownloaded = true
-        for _, file in ipairs(files_to_download) do
-            if not doesFileExist(getWorkingDirectory() .. "\\" .. file.path) then allDownloaded = false end
-        end
-    end
-    
-    sampAddChatMessage("{88FF88}[MFTools] {FFFFFF}Установка успешно завершена! Скрипт перезагружается...", -1)
+    sampAddChatMessage(u8:decode(u8"{88FF88}[MFTools] {FFFFFF}Установка успешно завершена! Скрипт перезагружается..."), -1)
     thisScript():reload()
 end
 
 local function checkForUpdates()
     local jsonPath = getWorkingDirectory() .. "\\mft_update.json"
-    -- Обход кэша для JSON работает отлично
     local urlWithNoCache = UPDATE_JSON_URL .. "?t=" .. os.time()
     
     downloadUrlToFile(urlWithNoCache, jsonPath, function(id, status, p1, p2)
@@ -147,19 +141,19 @@ local function checkForUpdates()
                 local success, data = pcall(decode, content)
                 
                 if success and data and tonumber(data.version) then
-                    sampAddChatMessage("{3498DB}[MFTools] {FFFFFF}Текущая версия скрипта: {FFDD00}" .. SCRIPT_VERSION_TEXT, -1)
+                    sampAddChatMessage(u8:decode(u8"{3498DB}[MFTools] {FFFFFF}Текущая версия скрипта: {FFDD00}" .. SCRIPT_VERSION_TEXT), -1)
                     
                     if tonumber(data.version) > SCRIPT_VERSION then
                         updateAvailable = true
                         updateUrl = data.url
                         updateVersionText = data.version_text
-                        sampAddChatMessage("{3498DB}[MFTools] {FFFFFF}Доступно обновление: {FFDD00}" .. updateVersionText, -1)
-                        sampAddChatMessage("{3498DB}[MFTools] {FFFFFF}Напишите команду в чат {FFDD00}/mft_up{FFFFFF}, чтобы установить его.", -1)
+                        sampAddChatMessage(u8:decode(u8"{3498DB}[MFTools] {FFFFFF}Доступно обновление: {FFDD00}" .. updateVersionText), -1)
+                        sampAddChatMessage(u8:decode(u8"{3498DB}[MFTools] {FFFFFF}Напишите команду в чат {FFDD00}/mft_up{FFFFFF}, чтобы установить его."), -1)
                     else
-                        sampAddChatMessage("{3498DB}[MFTools] {FFFFFF}Проверка обновлений прошла успешно, обновлений не обнаружено.", -1)
+                        sampAddChatMessage(u8:decode(u8"{3498DB}[MFTools] {FFFFFF}Проверка обновлений прошла успешно, обновлений не обнаружено."), -1)
                     end
                 else
-                    sampAddChatMessage("{FF0000}[MFTools] Ошибка чтения update.json. Проверьте синтаксис файла на GitHub!", -1)
+                    sampAddChatMessage(u8:decode(u8"{FF0000}[MFTools] Ошибка чтения update.json. Проверьте синтаксис файла на GitHub!"), -1)
                 end
             end
         end
@@ -265,7 +259,7 @@ local uiFrame = imgui.OnFrame(
 function main()
     while not isSampAvailable() do wait(100) end
     
-    sampAddChatMessage("{3498DB}[MFTools v" .. SCRIPT_VERSION_TEXT .. "] {FFFFFF}Скрипт успешно загружен! Меню: {FFDD00}/mft", -1)
+    sampAddChatMessage(u8:decode(u8"{3498DB}[MFTools v" .. SCRIPT_VERSION_TEXT .. "] {FFFFFF}Скрипт успешно загружен! Меню: {FFDD00}/mft"), -1)
     
     lua_thread.create(function()
         wait(2000)
@@ -278,44 +272,36 @@ function main()
 
     sampRegisterChatCommand("mft_up", function() 
         if updateAvailable then
-            sampAddChatMessage("{3498DB}[MFTools] {FFFFFF}Начинаем загрузку обновления. Это займет пару секунд...", -1)
+            sampAddChatMessage(u8:decode(u8"{3498DB}[MFTools] {FFFFFF}Загрузка обновления (около 10-15 сек). Пожалуйста, не закрывайте игру..."), -1)
             
             lua_thread.create(function()
-                -- 1. Скачиваем главный файл с ОБХОДОМ КЭША
+                -- 1. Скачиваем главный файл с защитой от зависания
                 local scriptPath = thisScript().path
-                local mainScriptDownloaded = false
-                local mainUrlWithNoCache = updateUrl .. "?t=" .. os.time()
-                
-                downloadUrlToFile(mainUrlWithNoCache, scriptPath, function(id, status)
-                    if status == dlstatus.STATUS_ENDDOWNLOADDATA then
-                        mainScriptDownloaded = true
-                    end
+                local mainDone = false
+                downloadUrlToFile(updateUrl .. "?t=" .. os.time(), scriptPath, function(id, status)
+                    if status == dlstatus.STATUS_ENDDOWNLOADDATA then mainDone = true end
                 end)
+                local timeout = os.clock() + 5.0
+                while not mainDone and os.clock() < timeout do wait(50) end
                 
-                -- 2. Скачиваем все зависимые файлы с ОБХОДОМ КЭША
-                local totalFiles = #files_to_download
-                local downloaded = 0
-                
+                -- 2. Скачиваем все зависимые файлы ПО ОЧЕРЕДИ
                 for _, file in ipairs(files_to_download) do
                     local dest = getWorkingDirectory() .. "\\" .. file.path
-                    local fileUrlWithNoCache = file.url .. "?t=" .. os.time()
-                    
-                    downloadUrlToFile(fileUrlWithNoCache, dest, function(id, status)
-                        if status == dlstatus.STATUS_ENDDOWNLOADDATA then
-                            downloaded = downloaded + 1
-                        end
+                    local fileDone = false
+                    downloadUrlToFile(file.url .. "?t=" .. os.time(), dest, function(id, status)
+                        if status == dlstatus.STATUS_ENDDOWNLOADDATA then fileDone = true end
                     end)
+                    
+                    -- Таймаут 3 секунды на каждый файл
+                    local fileTimeout = os.clock() + 3.0
+                    while not fileDone and os.clock() < fileTimeout do wait(50) end
                 end
                 
-                -- 3. Ждем завершения загрузок
-                while downloaded < totalFiles or not mainScriptDownloaded do wait(100) end
-                
-                -- 4. Перезагрузка
-                sampAddChatMessage("{88FF88}[MFTools] {FFFFFF}Все файлы успешно обновлены! Скрипт перезагружается...", -1)
+                sampAddChatMessage(u8:decode(u8"{88FF88}[MFTools] {FFFFFF}Все файлы успешно обновлены! Скрипт перезагружается..."), -1)
                 thisScript():reload()
             end)
         else
-            sampAddChatMessage("{FF0000}[MFTools] {FFFFFF}Нет доступных обновлений для загрузки.", -1)
+            sampAddChatMessage(u8:decode(u8"{FF0000}[MFTools] {FFFFFF}Нет доступных обновлений для загрузки."), -1)
         end
     end)
     

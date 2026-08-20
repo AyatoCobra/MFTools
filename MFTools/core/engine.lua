@@ -7,6 +7,9 @@ encoding.default = 'CP1251'
 local u8 = encoding.UTF8
 
 local engine = {}
+engine.lastSentLine = ""           -- Запоминаем последнюю отправленную строку
+engine.antiFloodTriggered = false  -- Флаг срабатывания анти-флуда
+
 local cfgPath = getWorkingDirectory() .. "\\config\\MFTools_Data.ini"
 
 pcall(ffi.cdef, [[
@@ -611,6 +614,7 @@ function engine.parseString(line)
     return parsedLine
 end
 
+-- === УМНАЯ ОТПРАВКА СТРОК (АНТИ-ФЛУД) ===
 function engine.executeBind(bind)
     if not bind or bind.type == "folder" then return end
     if MFT.bindThreads[1] and MFT.bindThreads[1]:status() ~= "dead" then MFT.bindThreads[1]:terminate() end
@@ -632,9 +636,35 @@ function engine.executeBind(bind)
                 parsedLine = engine.parseString(parsedLine)
 
                 if parsedLine:match("%S") then
+                    engine.lastSentLine = parsedLine
                     sampSendChat(parsedLine)
+                    
+                    local delay = custom_sleep and tonumber(custom_sleep) or bind.delay
+                    local waited = 0
+                    
+                    -- Проверяем задержку и перехватываем мут от антифлуда
+                    if i < #(bind.lines or {}) then
+                        while waited < delay do
+                            wait(50)
+                            waited = waited + 50
+                            
+                            if engine.antiFloodTriggered then
+                                wait(3000) -- Ждем 3 секунды, чтобы сервер успокоился
+                                sampSendChat(engine.lastSentLine)
+                                engine.antiFloodTriggered = false
+                                waited = 0 -- Обнуляем таймер для следующей строки
+                            end
+                        end
+                    else
+                        -- Даже после последней строчки ждем долю секунды, чтобы проверить ответ сервера
+                        wait(500)
+                        if engine.antiFloodTriggered then
+                            wait(3000)
+                            sampSendChat(engine.lastSentLine)
+                            engine.antiFloodTriggered = false
+                        end
+                    end
                 end
-                if i < #(bind.lines or {}) then wait(custom_sleep and tonumber(custom_sleep) or bind.delay) end
             end
         end
     end)
@@ -751,7 +781,17 @@ function engine.processAutoReport()
                     wait(300) 
                     local parsed = engine.parseString(lineToSent)
                     if #parsed > 0 then
+                        -- Встраиваем анти-флуд и сюда тоже!
+                        engine.lastSentLine = parsed
                         sampSendChat(parsed)
+                        
+                        wait(500)
+                        if engine.antiFloodTriggered then
+                            wait(3000)
+                            sampSendChat(engine.lastSentLine)
+                            engine.antiFloodTriggered = false
+                        end
+                        
                         if MFT.settings.autoReport.autoScreen == true then
                             wait(500); setVirtualKeyDown(vk.VK_F8, true); wait(50); setVirtualKeyDown(vk.VK_F8, false)
                         end
@@ -866,7 +906,16 @@ function engine.advanceSequence(bind)
             
             parsedLine = engine.parseString(parsedLine)
             if parsedLine:match("%S") then
+                -- Встраиваем анти-флуд в пошаговые бинды
+                engine.lastSentLine = parsedLine
                 sampSendChat(parsedLine)
+                
+                wait(500)
+                if engine.antiFloodTriggered then
+                    wait(3000)
+                    sampSendChat(engine.lastSentLine)
+                    engine.antiFloodTriggered = false
+                end
             end
         end)
     end

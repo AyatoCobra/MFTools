@@ -28,12 +28,21 @@ function formatter.onSendCommand(cmd)
     return cmd
 end
 
--- Фильтрация входящих сообщений (Режим СС)
+-- Фильтрация входящих сообщений (Режим СС) и Перехват Анти-флуда
 function formatter.onServerMessage(color, text)
+    -- Очищаем текст от серверных HEX-цветов (формат {XXXXXX}) перед проверками
+    local cleanText = text:gsub("{%x%x%x%x%x%x}", "")
+    
+    -- === УМНЫЙ АНТИ-ФЛУД (ПЕРЕХВАТ) ===
+    -- Добавь сюда другие вариации серверного сообщения о флуде, если они отличаются
+    if cleanText:find("Не флуди") or cleanText:find("прекратите флудить") then
+        local engine = require "MFTools.core.engine"
+        engine.antiFloodTriggered = true -- Даем движку сигнал, что сработал анти-флуд
+        return false -- Скрываем сообщение о флуде из чата, чтобы не раздражать игрока
+    end
+    -- ===================================
+
     if MFT.settings.ssMode then
-        -- Очищаем текст от серверных HEX-цветов (формат {XXXXXX}) перед проверкой
-        local cleanText = text:gsub("{%x%x%x%x%x%x}", "")
-        
         local f = MFT.settings.ssFilters or {ooc = true, radio = true, vip = true, ads = true, sys = true, pd_alerts = true, afk = true, events = true, thoughts = true}
         
         -- Фильтр OOC чатов

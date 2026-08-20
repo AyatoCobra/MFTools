@@ -33,7 +33,6 @@ local function DrawDonutSector(dl, cx, cy, r_outer, r_inner, a_min, a_max, color
     end
 end
 
--- ¡ÂÁÓÔ‡ÒÌ˚È ÔÂÂÌÓÒ ÚÂÍÒÚ‡ ‰Îˇ UTF-8 (mimgui)
 local function wrapText(str, lineLen)
     if not str or str == "" then return "" end
     local words = {}
@@ -68,7 +67,6 @@ local function buildTreeForCombos(list, prefix, depth, names, keys)
     end
 end
 
--- ‘ÛÌÍˆËˇ ‰Îˇ ÔÓÎÛ˜ÂÌËˇ ËÏÂÌË ·ËÌ‰‡ ËÁ ·‡Á˚ ÔÓ Â„Ó ÍÎ˛˜Û
 local function getBindNameByKey(keyStr)
     if not keyStr or keyStr == "" or keyStr == "0" then return nil end
     local parts = {}
@@ -91,11 +89,12 @@ end
 function tab_interactions.draw(dash, dt, c_accent, sb_color, c_text, availWidth)
     local tSet = MFT.settings.target
     if not tSet then 
-        MFT.settings.target = { enabled = true, radialKey = 82, sectorsCount = 6, radius = 150.0, transparency = 0.8, sectorColor = {0.1, 0.1, 0.1}, radialBinds = {}, quickKeys = {{key=0, bind=0}}, menuMode = 0 }
+        MFT.settings.target = { enabled = true, radialKey = 82, sectorsCount = 6, radius = 150.0, transparency = 0.8, sectorColor = {0.1, 0.1, 0.1}, radialBinds = {}, names = {}, quickKeys = {{key=0, bind=0}}, menuMode = 0 }
         tSet = MFT.settings.target
     end
     tSet.sectorsCount = tonumber(tSet.sectorsCount) or 6
     tSet.menuMode = tonumber(tSet.menuMode) or 0
+    if type(tSet.names) ~= "table" then tSet.names = {} end
 
     if type(tSet.groups) ~= "table" then
         tSet.groups = {}
@@ -199,10 +198,17 @@ function tab_interactions.draw(dash, dt, c_accent, sb_color, c_text, availWidth)
                 rmath.DrawArcLine(dl, cx, cy, outerRadius, a_start, a_end, bordColor, (isActive or isHovered) and 2.5 or 1.5)
                 dl:AddLine(imgui.ImVec2(cx + math.cos(a_start)*innerRadius, cy + math.sin(a_start)*innerRadius), imgui.ImVec2(cx + math.cos(a_start)*outerRadius, cy + math.sin(a_start)*outerRadius), imgui.GetColorU32Vec4(imgui.ImVec4(c_accent.x, c_accent.y, c_accent.z, 0.3)), 1.5)
                 
-                -- œŒÀ”◊≈Õ»≈ –≈¿À‹ÕŒ√Œ »Ã≈Õ» ¡»Õƒ¿ (–ÂÊËÏ Ó‰ÌÓ„Ó ÍÓÎ¸ˆ‡)
-                local actualName = getBindNameByKey(tSet.radialBinds[tostring(i)])
-                local rawText = actualName or (u8"¡ËÌ‰ "..i)
-                local secText = wrapText(rawText, 24)
+                -- »—œŒÀ‹«”≈Ã  ¿—“ŒÃÕŒ≈ »Ãﬂ »À» œ≈–¬Œ≈ —ÀŒ¬Œ
+                local customName = tSet.names[tostring(i)]
+                local secText = ""
+                if customName and customName ~= "" then
+                    secText = wrapText(customName, 24)
+                else
+                    local actualName = getBindNameByKey(tSet.radialBinds[tostring(i)])
+                    local rawText = actualName or (u8"œÛÒÚÓ")
+                    local cleanText = rawText:gsub("{%x%x%x%x%x%x}", "")
+                    secText = wrapText(cleanText:match("^%s*(%S+)") or cleanText, 24)
+                end
 
                 local textX, textY = rmath.GetSectorCenter(cx, cy, innerRadius + (outerRadius - innerRadius)/2, a_start, a_end)
                 local tSize = imgui.CalcTextSize(secText)
@@ -306,10 +312,18 @@ function tab_interactions.draw(dash, dt, c_accent, sb_color, c_text, availWidth)
                     rmath.DrawArcLine(dl, cx, cy, outerInnerRadius, a_start, a_end, bordColor, (isHoveredOuter or isActiveOuter) and 2.5 or 1.5)
                     dl:AddLine(imgui.ImVec2(cx + math.cos(a_start)*outerInnerRadius, cy + math.sin(a_start)*outerInnerRadius), imgui.ImVec2(cx + math.cos(a_start)*outerRadius, cy + math.sin(a_start)*outerRadius), imgui.GetColorU32Vec4(imgui.ImVec4(c_accent.x, c_accent.y, c_accent.z, 0.3)), 1.5)
                     
-                    -- œŒÀ”◊≈Õ»≈ –≈¿À‹ÕŒ√Œ »Ã≈Õ» ¡»Õƒ¿ (¬ÌÂ¯ÌÂÂ ÍÓÎ¸ˆÓ)
-                    local actualName = getBindNameByKey(grp.binds[tostring(j)])
-                    local rawText = actualName or (u8"¡ËÌ‰ "..j)
-                    local secText = wrapText(rawText, 24)
+                    -- »—œŒÀ‹«”≈Ã  ¿—“ŒÃÕŒ≈ »Ãﬂ »À» œ≈–¬Œ≈ —ÀŒ¬Œ
+                    local actKey = tostring(activeGroupPreview) .. "_" .. tostring(j)
+                    local customName = tSet.names[actKey]
+                    local secText = ""
+                    if customName and customName ~= "" then
+                        secText = wrapText(customName, 24)
+                    else
+                        local actualName = getBindNameByKey(grp.binds[tostring(j)])
+                        local rawText = actualName or (u8"œÛÒÚÓ")
+                        local cleanText = rawText:gsub("{%x%x%x%x%x%x}", "")
+                        secText = wrapText(cleanText:match("^%s*(%S+)") or cleanText, 24)
+                    end
 
                     local textX, textY = rmath.GetSectorCenter(cx, cy, outerInnerRadius + (outerRadius - outerInnerRadius)/2, a_start, a_end)
                     local tSize = imgui.CalcTextSize(secText)
@@ -337,7 +351,7 @@ function tab_interactions.draw(dash, dt, c_accent, sb_color, c_text, availWidth)
         if tSet.menuMode == 0 then
             local activeSec = tState.selectedInner
             local cardTitle = u8("œ–»¬ﬂ« ¿: —≈ “Œ– " .. tostring(activeSec))
-            utils.BeginCard(dash, dt, "TargetSettingsSector", 140, cardTitle, c_accent, sb_color)
+            utils.BeginCard(dash, dt, "TargetSettingsSector", 200, cardTitle, c_accent, sb_color)
             
             local secKey = tostring(activeSec)
             local curIdx = 0
@@ -350,8 +364,29 @@ function tab_interactions.draw(dash, dt, c_accent, sb_color, c_text, availWidth)
             
             local comboIdx = ffi.new("int[1]", curIdx)
             imgui.PushItemWidth(-1)
+            -- œ–»¬ﬂ« ¿ » ¿¬“Œ-”—“¿ÕŒ¬ ¿ »Ã≈Õ»
             if imgui.Combo("##bindSelect", comboIdx, comboItems, #bindNames) then
-                if comboIdx[0] == 0 then tSet.radialBinds[secKey] = nil else tSet.radialBinds[secKey] = bindKeys[comboIdx[0] + 1] end
+                if comboIdx[0] == 0 then 
+                    tSet.radialBinds[secKey] = nil 
+                    tSet.names[secKey] = nil
+                else 
+                    tSet.radialBinds[secKey] = bindKeys[comboIdx[0] + 1] 
+                    local bName = getBindNameByKey(tSet.radialBinds[secKey]) or u8"¡ËÌ‰"
+                    local cText = bName:gsub("{%x%x%x%x%x%x}", "")
+                    tSet.names[secKey] = cText:match("^%s*(%S+)") or cText
+                end
+                engine.saveData()
+            end
+            imgui.PopItemWidth()
+            
+            imgui.Spacing()
+            
+            -- œŒÀ≈ ƒÀﬂ  ¿—“ŒÃÕŒ√Œ Õ¿«¬¿Õ»ﬂ —≈ “Œ–¿
+            imgui.TextColored(c_accent, u8"Õ‡Á‚‡ÌËÂ ÒÂÍÚÓ‡ ‚ ÏÂÌ˛:")
+            local nameBuf = ffi.new("char[256]", tSet.names[secKey] or "")
+            imgui.PushItemWidth(-1)
+            if imgui.InputText("##tname_"..secKey, nameBuf, 256) then
+                tSet.names[secKey] = ffi.string(nameBuf)
                 engine.saveData()
             end
             imgui.PopItemWidth()
@@ -363,6 +398,7 @@ function tab_interactions.draw(dash, dt, c_accent, sb_color, c_text, availWidth)
             imgui.PushStyleVarFloat(imgui.StyleVar.FrameBorderSize, 1.0)
             if imgui.Button(u8"Œ˜ËÒÚËÚ¸ ÒÂÍÚÓ", imgui.ImVec2(-1, 35)) then
                 tSet.radialBinds[secKey] = nil
+                tSet.names[secKey] = nil
                 engine.saveData()
             end
             imgui.PopStyleVar()
@@ -401,7 +437,7 @@ function tab_interactions.draw(dash, dt, c_accent, sb_color, c_text, availWidth)
                 local grp = tSet.groups[tostring(tState.selectedInner)]
                 local actIdx = tState.selectedOuter
                 local cardText = u8("œ–»¬ﬂ« ¿: √–”œœ¿ " .. tostring(tState.selectedInner)) .. u8(" -> ¡»Õƒ " .. tostring(actIdx))
-                utils.BeginCard(dash, dt, "TargetSettingsAction", 140, cardText, c_accent, sb_color)
+                utils.BeginCard(dash, dt, "TargetSettingsAction", 200, cardText, c_accent, sb_color)
                 
                 local curIdx = 0
                 local savedPath = tostring(grp.binds[tostring(actIdx)] or "")
@@ -411,10 +447,33 @@ function tab_interactions.draw(dash, dt, c_accent, sb_color, c_text, availWidth)
                     end
                 end
                 
+                local actKey = tostring(tState.selectedInner) .. "_" .. tostring(actIdx)
+                
                 local comboIdx = ffi.new("int[1]", curIdx)
                 imgui.PushItemWidth(-1)
+                -- œ–»¬ﬂ« ¿ » ¿¬“Œ-”—“¿ÕŒ¬ ¿ »Ã≈Õ»
                 if imgui.Combo("##gbnd_"..actIdx, comboIdx, comboItems, #bindNames) then
-                    if comboIdx[0] == 0 then grp.binds[tostring(actIdx)] = nil else grp.binds[tostring(actIdx)] = bindKeys[comboIdx[0] + 1] end
+                    if comboIdx[0] == 0 then 
+                        grp.binds[tostring(actIdx)] = nil 
+                        tSet.names[actKey] = nil
+                    else 
+                        grp.binds[tostring(actIdx)] = bindKeys[comboIdx[0] + 1] 
+                        local bName = getBindNameByKey(grp.binds[tostring(actIdx)]) or u8"¡ËÌ‰"
+                        local cText = bName:gsub("{%x%x%x%x%x%x}", "")
+                        tSet.names[actKey] = cText:match("^%s*(%S+)") or cText
+                    end
+                    engine.saveData()
+                end
+                imgui.PopItemWidth()
+                
+                imgui.Spacing()
+                
+                -- œŒÀ≈ ƒÀﬂ  ¿—“ŒÃÕŒ√Œ Õ¿«¬¿Õ»ﬂ —≈ “Œ–¿
+                imgui.TextColored(c_accent, u8"Õ‡Á‚‡ÌËÂ ÒÂÍÚÓ‡ ‚ ÏÂÌ˛:")
+                local nameBuf = ffi.new("char[256]", tSet.names[actKey] or "")
+                imgui.PushItemWidth(-1)
+                if imgui.InputText("##tgrname_"..actKey, nameBuf, 256) then
+                    tSet.names[actKey] = ffi.string(nameBuf)
                     engine.saveData()
                 end
                 imgui.PopItemWidth()
@@ -426,6 +485,7 @@ function tab_interactions.draw(dash, dt, c_accent, sb_color, c_text, availWidth)
                 imgui.PushStyleVarFloat(imgui.StyleVar.FrameBorderSize, 1.0)
                 if imgui.Button(u8"Œ˜ËÒÚËÚ¸ ·ËÌ‰", imgui.ImVec2(-1, 35)) then
                     grp.binds[tostring(actIdx)] = nil
+                    tSet.names[actKey] = nil
                     engine.saveData()
                 end
                 imgui.PopStyleVar()

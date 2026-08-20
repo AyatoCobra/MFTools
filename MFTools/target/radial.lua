@@ -31,23 +31,6 @@ local function DrawDonutSector(dl, cx, cy, r_outer, r_inner, a_min, a_max, color
     end
 end
 
-local function wrapText(str, lineLen)
-    if #str <= lineLen then return str end
-    local words = {}
-    for w in str:gmatch("%S+") do table.insert(words, w) end
-    local lines = {""}
-    local currentLine = 1
-    for _, word in ipairs(words) do
-        if #(lines[currentLine] .. word) > lineLen and lines[currentLine] ~= "" then
-            currentLine = currentLine + 1
-            lines[currentLine] = word
-        else
-            lines[currentLine] = lines[currentLine] == "" and word or (lines[currentLine] .. " " .. word)
-        end
-    end
-    return table.concat(lines, "\n")
-end
-
 local function resolvePath(pathStr)
     if type(pathStr) ~= "string" and type(pathStr) ~= "number" then return nil end
     pathStr = tostring(pathStr)
@@ -87,11 +70,11 @@ function tradial.process()
         return
     end
 
-    if isPressed then
+    if isPressed and not wasPressed then
         if MFT.state.aimTargetId ~= -1 and not tradial.isOpen then
             tradial.isOpen = true
         end
-    else
+    elseif not isPressed and wasPressed then
         if tradial.isOpen then
             tradial.isOpen = false
             local style = tonumber(tSet.menuMode) or 0
@@ -191,13 +174,27 @@ function tradial.drawUI()
             rmath.DrawArcLine(dl, cx, cy, outerRadius, a_start, a_end, bordColor, isActive and 2.5 or 1.5)
             dl:AddLine(imgui.ImVec2(cx + math.cos(a_start)*innerRadius, cy + math.sin(a_start)*innerRadius), imgui.ImVec2(cx + math.cos(a_start)*outerRadius, cy + math.sin(a_start)*outerRadius), imgui.GetColorU32Vec4(imgui.ImVec4(c_accent[1], c_accent[2], c_accent[3], 0.3 * tradial.openAnim)), 1.5)
 
-            local textX, textY = rmath.GetSectorCenter(cx, cy, innerRadius + (outerRadius - innerRadius)/2, a_start, a_end)
-            local item = resolvePath(binds[tostring(i)])
-            local rawText = item and (item.name and u8(item.name) or u8"¡ËÌ‰") or u8"œÛÒÚÓ"
+            -- »—œŒÀ‹«”≈Ã  ¿—“ŒÃÕŒ≈ »Ãﬂ
+            local customName = tSet.names and tSet.names[tostring(i)]
+            local secText = ""
+            if customName and customName ~= "" then
+                secText = customName
+            else
+                local item = resolvePath(binds[tostring(i)])
+                local rawText = item and (item.name and u8(item.name) or u8"¡ËÌ‰") or u8"œÛÒÚÓ"
+                local cleanText = rawText:gsub("{%x%x%x%x%x%x}", "")
+                secText = cleanText:match("^%s*(%S+)") or cleanText
+            end
             
-            local secText = wrapText(string.sub(rawText, 1, 15), 10)
+            local textX, textY = rmath.GetSectorCenter(cx, cy, innerRadius + (outerRadius - innerRadius)/2, a_start, a_end)
             local tSize = imgui.CalcTextSize(secText)
-            dl:AddText(imgui.ImVec2(textX - tSize.x/2, textY - tSize.y/2), imgui.GetColorU32Vec4(imgui.ImVec4(1, 1, 1, isActive and 1.0 or 0.7)), secText)
+            local textCol = imgui.GetColorU32Vec4(imgui.ImVec4(1, 1, 1, isActive and 1.0 or 0.7))
+            
+            if isActive then
+                dl:AddText(imgui.ImVec2(textX - tSize.x/2 + 1, textY - tSize.y/2), textCol, secText)
+                dl:AddText(imgui.ImVec2(textX - tSize.x/2, textY - tSize.y/2 + 1), textCol, secText)
+            end
+            dl:AddText(imgui.ImVec2(textX - tSize.x/2, textY - tSize.y/2), textCol, secText)
         end
     else
         -- === Ã≈Õﬁ — √–”œœ¿Ã» (‘» —¿÷»ﬂ Ã€ÿ») ===
@@ -253,10 +250,19 @@ function tradial.drawUI()
             
             local grp = groups[tostring(i)]
             local rawText = grp and u8(grp.name) or u8"√ÛÔÔ‡ "..i
+            
+            local cleanText = rawText:gsub("{%x%x%x%x%x%x}", "")
+            local secText = cleanText:match("^%s*(%S+)") or cleanText
+            
             local textX, textY = rmath.GetSectorCenter(cx, cy, innerRadius + (midRadius - innerRadius)/2, a_start, a_end)
-            local secText = wrapText(string.sub(rawText, 1, 10), 10)
             local tSize = imgui.CalcTextSize(secText)
-            dl:AddText(imgui.ImVec2(textX - tSize.x/2, textY - tSize.y/2), imgui.GetColorU32Vec4(imgui.ImVec4(1, 1, 1, isHovered and 1.0 or 0.5)), secText)
+            local textCol = imgui.GetColorU32Vec4(imgui.ImVec4(1, 1, 1, isHovered and 1.0 or 0.5))
+            
+            if isHovered then
+                dl:AddText(imgui.ImVec2(textX - tSize.x/2 + 1, textY - tSize.y/2), textCol, secText)
+                dl:AddText(imgui.ImVec2(textX - tSize.x/2, textY - tSize.y/2 + 1), textCol, secText)
+            end
+            dl:AddText(imgui.ImVec2(textX - tSize.x/2, textY - tSize.y/2), textCol, secText)
         end
         
         -- ŒÚËÒÓ‚Í‡ ‚ÌÂ¯ÌÂ„Ó ÍÓÎ¸ˆ‡
@@ -282,17 +288,32 @@ function tradial.drawUI()
             rmath.DrawArcLine(dl, cx, cy, outerInnerRadius, a_start, a_end, bordColor, isHoveredOuter and 2.5 or 1.5)
             dl:AddLine(imgui.ImVec2(cx + math.cos(a_start)*outerInnerRadius, cy + math.sin(a_start)*outerInnerRadius), imgui.ImVec2(cx + math.cos(a_start)*outerRadius, cy + math.sin(a_start)*outerRadius), imgui.GetColorU32Vec4(imgui.ImVec4(c_accent[1], c_accent[2], c_accent[3], 0.3 * tradial.openAnim)), 1.5)
             
-            local item = nil
-            if grp then 
-                local grpBinds = grp.binds or {}
-                item = resolvePath(grpBinds[tostring(j)]) 
+            -- »—œŒÀ‹«”≈Ã  ¿—“ŒÃÕŒ≈ »Ãﬂ
+            local actKey = tostring(tradial.lockedGroup) .. "_" .. tostring(j)
+            local customName = tSet.names and tSet.names[actKey]
+            local secText = ""
+            if customName and customName ~= "" then
+                secText = customName
+            else
+                local item = nil
+                if grp then 
+                    local grpBinds = grp.binds or {}
+                    item = resolvePath(grpBinds[tostring(j)]) 
+                end
+                local rawText = item and (item.name and u8(item.name) or u8"¡ËÌ‰") or u8"œÛÒÚÓ"
+                local cleanText = rawText:gsub("{%x%x%x%x%x%x}", "")
+                secText = cleanText:match("^%s*(%S+)") or cleanText
             end
-            local rawText = item and (item.name and u8(item.name) or u8"¡ËÌ‰") or u8"œÛÒÚÓ"
             
             local textX, textY = rmath.GetSectorCenter(cx, cy, outerInnerRadius + (outerRadius - outerInnerRadius)/2, a_start, a_end)
-            local secText = wrapText(string.sub(rawText, 1, 15), 10)
             local tSize = imgui.CalcTextSize(secText)
-            dl:AddText(imgui.ImVec2(textX - tSize.x/2, textY - tSize.y/2), imgui.GetColorU32Vec4(imgui.ImVec4(1, 1, 1, isHoveredOuter and 1.0 or 0.6)), secText)
+            local textCol = imgui.GetColorU32Vec4(imgui.ImVec4(1, 1, 1, isHoveredOuter and 1.0 or 0.6))
+            
+            if isHoveredOuter then
+                dl:AddText(imgui.ImVec2(textX - tSize.x/2 + 1, textY - tSize.y/2), textCol, secText)
+                dl:AddText(imgui.ImVec2(textX - tSize.x/2, textY - tSize.y/2 + 1), textCol, secText)
+            end
+            dl:AddText(imgui.ImVec2(textX - tSize.x/2, textY - tSize.y/2), textCol, secText)
         end
     end
 

@@ -32,7 +32,6 @@ local function DrawDonutSector(dl, cx, cy, r_outer, r_inner, a_min, a_max, color
     end
 end
 
--- ¡ÂÁÓÔ‡ÒÌ˚È ÔÂÂÌÓÒ ÚÂÍÒÚ‡ ‰Îˇ UTF-8 (mimgui)
 local function wrapText(str, lineLen)
     if not str or str == "" then return "" end
     local words = {}
@@ -68,7 +67,6 @@ local function buildTreeForCombos(list, prefix, depth, names, keys)
     end
 end
 
--- ‘ÛÌÍˆËˇ ‰Îˇ ÔÓÎÛ˜ÂÌËˇ ËÏÂÌË ·ËÌ‰‡ ËÁ ·‡Á˚ ÔÓ Â„Ó ÍÎ˛˜Û (Ì‡Ô. "1" ËÎË "2_4")
 local function getBindNameByKey(keyStr)
     if not keyStr or keyStr == "" or keyStr == "0" then return nil end
     local parts = {}
@@ -102,6 +100,7 @@ function tab_radial.draw(dash, dt, c_accent, sb_color, c_text, availWidth)
     
     if type(rSet.sectorColor) ~= "table" then rSet.sectorColor = {0.08, 0.08, 0.08} end
     if type(rSet.binds) ~= "table" then rSet.binds = {} end
+    if type(rSet.names) ~= "table" then rSet.names = {} end
     if type(rSet.groups) ~= "table" then
         rSet.groups = {}
         for i=1, 12 do rSet.groups[tostring(i)] = {name="√–”œœ¿ "..i, count=6, binds={}} end
@@ -202,10 +201,17 @@ function tab_radial.draw(dash, dt, c_accent, sb_color, c_text, availWidth)
                 rmath.DrawArcLine(dl, cx, cy, outerRadius, a_start, a_end, bordColor, isActive and 2.5 or 1.5)
                 dl:AddLine(imgui.ImVec2(cx + math.cos(a_start)*innerRadius, cy + math.sin(a_start)*innerRadius), imgui.ImVec2(cx + math.cos(a_start)*outerRadius, cy + math.sin(a_start)*outerRadius), imgui.GetColorU32Vec4(imgui.ImVec4(c_accent.x, c_accent.y, c_accent.z, 0.3)), 1.5)
 
-                -- œŒÀ”◊≈Õ»≈ –≈¿À‹ÕŒ√Œ »Ã≈Õ» ¡»Õƒ¿ (–ÂÊËÏ Ó‰ÌÓ„Ó ÍÓÎ¸ˆ‡)
-                local actualName = getBindNameByKey(rSet.binds[tostring(i)])
-                local rawText = actualName or (u8"¡ËÌ‰ "..i)
-                local secText = wrapText(rawText, 24)
+                -- »—œŒÀ‹«”≈Ã  ¿—“ŒÃÕŒ≈ »Ãﬂ »À» œ≈–¬Œ≈ —ÀŒ¬Œ
+                local customName = rSet.names[tostring(i)]
+                local secText = ""
+                if customName and customName ~= "" then
+                    secText = wrapText(customName, 24)
+                else
+                    local actualName = getBindNameByKey(rSet.binds[tostring(i)])
+                    local rawText = actualName or (u8"œÛÒÚÓ")
+                    local cleanText = rawText:gsub("{%x%x%x%x%x%x}", "")
+                    secText = wrapText(cleanText:match("^%s*(%S+)") or cleanText, 24)
+                end
 
                 local textX, textY = rmath.GetSectorCenter(cx, cy, innerRadius + (outerRadius - innerRadius)/2, a_start, a_end)
                 local tSize = imgui.CalcTextSize(secText)
@@ -267,7 +273,6 @@ function tab_radial.draw(dash, dt, c_accent, sb_color, c_text, availWidth)
                 rmath.DrawArcLine(dl, cx, cy, midRadius, a_start, a_end, bordColor, (isActive or isHovered) and 2.5 or 1.5)
                 dl:AddLine(imgui.ImVec2(cx + math.cos(a_start)*innerRadius, cy + math.sin(a_start)*innerRadius), imgui.ImVec2(cx + math.cos(a_start)*midRadius, cy + math.sin(a_start)*midRadius), imgui.GetColorU32Vec4(imgui.ImVec4(c_accent.x, c_accent.y, c_accent.z, 0.3)), 1.5)
                 
-                -- »Ïˇ „ÛÔÔ˚
                 local grp = rSet.groups[tostring(i)]
                 local rawText = grp and u8(grp.name) or (u8"√ÛÔÔ‡ "..i)
                 local secText = wrapText(rawText, 24)
@@ -309,10 +314,18 @@ function tab_radial.draw(dash, dt, c_accent, sb_color, c_text, availWidth)
                     rmath.DrawArcLine(dl, cx, cy, outerInnerRadius, a_start, a_end, bordColor, (isHoveredOuter or isActiveOuter) and 2.5 or 1.5)
                     dl:AddLine(imgui.ImVec2(cx + math.cos(a_start)*outerInnerRadius, cy + math.sin(a_start)*outerInnerRadius), imgui.ImVec2(cx + math.cos(a_start)*outerRadius, cy + math.sin(a_start)*outerRadius), imgui.GetColorU32Vec4(imgui.ImVec4(c_accent.x, c_accent.y, c_accent.z, 0.3)), 1.5)
                     
-                    -- œŒÀ”◊≈Õ»≈ –≈¿À‹ÕŒ√Œ »Ã≈Õ» ¡»Õƒ¿ (¬ÌÂ¯ÌÂÂ ÍÓÎ¸ˆÓ)
-                    local actualName = getBindNameByKey(grp.binds[tostring(j)])
-                    local rawText = actualName or (u8"¡ËÌ‰ "..j)
-                    local secText = wrapText(rawText, 24)
+                    -- »—œŒÀ‹«”≈Ã  ¿—“ŒÃÕŒ≈ »Ãﬂ »À» œ≈–¬Œ≈ —ÀŒ¬Œ
+                    local actKey = tostring(activeGroupPreview) .. "_" .. tostring(j)
+                    local customName = rSet.names[actKey]
+                    local secText = ""
+                    if customName and customName ~= "" then
+                        secText = wrapText(customName, 24)
+                    else
+                        local actualName = getBindNameByKey(grp.binds[tostring(j)])
+                        local rawText = actualName or (u8"œÛÒÚÓ")
+                        local cleanText = rawText:gsub("{%x%x%x%x%x%x}", "")
+                        secText = wrapText(cleanText:match("^%s*(%S+)") or cleanText, 24)
+                    end
 
                     local textX, textY = rmath.GetSectorCenter(cx, cy, outerInnerRadius + (outerRadius - outerInnerRadius)/2, a_start, a_end)
                     local tSize = imgui.CalcTextSize(secText)
@@ -342,7 +355,7 @@ function tab_radial.draw(dash, dt, c_accent, sb_color, c_text, availWidth)
 
         if rSet.menuMode == 0 then
             local activeSec = rState.selectedInner
-            utils.BeginCard(dash, dt, "RadialSettingsSector", 120, u8"œ–»¬ﬂ« ¿: —≈ “Œ– " .. activeSec, c_accent, sb_color)
+            utils.BeginCard(dash, dt, "RadialSettingsSector", 180, u8"œ–»¬ﬂ« ¿: —≈ “Œ– " .. activeSec, c_accent, sb_color)
             
             local secKey = tostring(activeSec)
             local curIdx = 0
@@ -355,11 +368,33 @@ function tab_radial.draw(dash, dt, c_accent, sb_color, c_text, availWidth)
             
             local comboIdx = ffi.new("int[1]", curIdx)
             imgui.PushItemWidth(-1)
+            -- œ–»¬ﬂ« ¿ » ¿¬“Œ-”—“¿ÕŒ¬ ¿ »Ã≈Õ»
             if imgui.Combo("##bindSelect", comboIdx, comboItems, #bindNames) then
-                if comboIdx[0] == 0 then rSet.binds[secKey] = nil else rSet.binds[secKey] = bindKeys[comboIdx[0] + 1] end
+                if comboIdx[0] == 0 then 
+                    rSet.binds[secKey] = nil 
+                    rSet.names[secKey] = nil
+                else 
+                    rSet.binds[secKey] = bindKeys[comboIdx[0] + 1] 
+                    local bName = getBindNameByKey(rSet.binds[secKey]) or u8"¡ËÌ‰"
+                    local cText = bName:gsub("{%x%x%x%x%x%x}", "")
+                    rSet.names[secKey] = cText:match("^%s*(%S+)") or cText
+                end
                 engine.saveData()
             end
             imgui.PopItemWidth()
+            
+            imgui.Spacing()
+            
+            -- œŒÀ≈ ƒÀﬂ  ¿—“ŒÃÕŒ√Œ Õ¿«¬¿Õ»ﬂ —≈ “Œ–¿
+            imgui.TextColored(c_accent, u8"Õ‡Á‚‡ÌËÂ ÒÂÍÚÓ‡ ‚ ÏÂÌ˛:")
+            local nameBuf = ffi.new("char[256]", rSet.names[secKey] or "")
+            imgui.PushItemWidth(-1)
+            if imgui.InputText("##rname_"..secKey, nameBuf, 256) then
+                rSet.names[secKey] = ffi.string(nameBuf)
+                engine.saveData()
+            end
+            imgui.PopItemWidth()
+
             utils.EndCard()
             
         else
@@ -392,7 +427,7 @@ function tab_radial.draw(dash, dt, c_accent, sb_color, c_text, availWidth)
                 local grp = rSet.groups[tostring(rState.selectedInner)]
                 local actIdx = rState.selectedOuter
                 local cardText = u8"œ–»¬ﬂ« ¿: √–”œœ¿ " .. tostring(rState.selectedInner) .. u8" -> ¡»Õƒ " .. tostring(actIdx)
-                utils.BeginCard(dash, dt, "RadialSettingsAction", 120, cardText, c_accent, sb_color)
+                utils.BeginCard(dash, dt, "RadialSettingsAction", 180, cardText, c_accent, sb_color)
                 
                 local curIdx = 0
                 local savedPath = tostring(grp.binds[tostring(actIdx)] or "")
@@ -402,13 +437,37 @@ function tab_radial.draw(dash, dt, c_accent, sb_color, c_text, availWidth)
                     end
                 end
                 
+                local actKey = tostring(rState.selectedInner) .. "_" .. tostring(actIdx)
+                
                 local comboIdx = ffi.new("int[1]", curIdx)
                 imgui.PushItemWidth(-1)
+                -- œ–»¬ﬂ« ¿ » ¿¬“Œ-”—“¿ÕŒ¬ ¿ »Ã≈Õ»
                 if imgui.Combo("##gbnd_"..actIdx, comboIdx, comboItems, #bindNames) then
-                    if comboIdx[0] == 0 then grp.binds[tostring(actIdx)] = nil else grp.binds[tostring(actIdx)] = bindKeys[comboIdx[0] + 1] end
+                    if comboIdx[0] == 0 then 
+                        grp.binds[tostring(actIdx)] = nil 
+                        rSet.names[actKey] = nil
+                    else 
+                        grp.binds[tostring(actIdx)] = bindKeys[comboIdx[0] + 1] 
+                        local bName = getBindNameByKey(grp.binds[tostring(actIdx)]) or u8"¡ËÌ‰"
+                        local cText = bName:gsub("{%x%x%x%x%x%x}", "")
+                        rSet.names[actKey] = cText:match("^%s*(%S+)") or cText
+                    end
                     engine.saveData()
                 end
                 imgui.PopItemWidth()
+
+                imgui.Spacing()
+                
+                -- œŒÀ≈ ƒÀﬂ  ¿—“ŒÃÕŒ√Œ Õ¿«¬¿Õ»ﬂ —≈ “Œ–¿
+                imgui.TextColored(c_accent, u8"Õ‡Á‚‡ÌËÂ ÒÂÍÚÓ‡ ‚ ÏÂÌ˛:")
+                local nameBuf = ffi.new("char[256]", rSet.names[actKey] or "")
+                imgui.PushItemWidth(-1)
+                if imgui.InputText("##grname_"..actKey, nameBuf, 256) then
+                    rSet.names[actKey] = ffi.string(nameBuf)
+                    engine.saveData()
+                end
+                imgui.PopItemWidth()
+
                 utils.EndCard()
             end
         end
@@ -416,7 +475,6 @@ function tab_radial.draw(dash, dt, c_accent, sb_color, c_text, availWidth)
         imgui.EndChild()
         imgui.SameLine(0, 10)
         
-        -- === œ–¿¬¿ﬂ  ŒÀŒÕ ¿ (Œ¡Ÿ»≈ Õ¿—“–Œ… » — Õ≈«¿¬»—»Ã€Ã — –ŒÀÀŒÃ) ===
         imgui.BeginChild("RadialRightCol", imgui.ImVec2(rightW, 0), false, imgui.WindowFlags.AlwaysVerticalScrollbar)
         
         utils.BeginCard(dash, dt, "RadialGeneral", 300, u8"Œ¡Ÿ»≈ Õ¿—“–Œ… »", c_accent, sb_color)

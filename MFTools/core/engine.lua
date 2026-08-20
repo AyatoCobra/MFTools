@@ -7,8 +7,8 @@ encoding.default = 'CP1251'
 local u8 = encoding.UTF8
 
 local engine = {}
-engine.lastSentLine = ""           -- Запоминаем последнюю отправленную строку
-engine.antiFloodTriggered = false  -- Флаг срабатывания анти-флуда
+engine.lastSentLine = ""           
+engine.antiFloodTriggered = false  
 
 local cfgPath = getWorkingDirectory() .. "\\config\\MFTools_Data.ini"
 
@@ -205,12 +205,14 @@ function engine.initDefaults()
     
     if type(MFT.settings.radial) ~= "table" then MFT.settings.radial = {} end
     if MFT.settings.radial.menuMode == nil then MFT.settings.radial.menuMode = 0 end
+    if type(MFT.settings.radial.names) ~= "table" then MFT.settings.radial.names = {} end
     initGroups(MFT.settings.radial)
     
     if not MFT.settings.target then
-        MFT.settings.target = { enabled = true, radialKey = 82, sectorsCount = 6, radius = 150.0, transparency = 0.8, sectorColor = {0.1, 0.1, 0.1}, radialBinds = {}, quickKeys = {{key=0, bind=0}}, menuMode = 0 }
+        MFT.settings.target = { enabled = true, radialKey = 82, sectorsCount = 6, radius = 150.0, transparency = 0.8, sectorColor = {0.1, 0.1, 0.1}, radialBinds = {}, names = {}, quickKeys = {{key=0, bind=0}}, menuMode = 0 }
     end
     if MFT.settings.target.menuMode == nil then MFT.settings.target.menuMode = 0 end
+    if type(MFT.settings.target.names) ~= "table" then MFT.settings.target.names = {} end
     initGroups(MFT.settings.target)
 
     if not MFT.settings.autoReport then
@@ -341,12 +343,14 @@ function engine.loadData()
     end
     
     MFT.settings.radial = {}
+    MFT.settings.radial.names = {}
     if ini.Radial then
         for k, v in pairs(ini.Radial) do MFT.settings.radial[k] = toBool(v); if tonumber(v) and type(MFT.settings.radial[k]) ~= "boolean" then MFT.settings.radial[k] = tonumber(v) end end
     end
     MFT.settings.radial.binds = {}
     if ini.RadialBinds then for k, v in pairs(ini.RadialBinds) do MFT.settings.radial.binds[tostring(k)] = tonumber(v) or v end end
     if ini.RadialColors then MFT.settings.radial.sectorColor = {tonumber(ini.RadialColors.r) or 0.08, tonumber(ini.RadialColors.g) or 0.08, tonumber(ini.RadialColors.b) or 0.08} end
+    if ini.RadialNames then for k, v in pairs(ini.RadialNames) do MFT.settings.radial.names[tostring(k)] = valToStr(v) end end
     loadGroups(MFT.settings.radial, "Radial", ini)
     
     MFT.settings.ssFilters = {}
@@ -371,6 +375,7 @@ function engine.loadData()
     end
     MFT.settings.target.radialBinds = {}
     if ini.TargetRadial then for k, v in pairs(ini.TargetRadial) do MFT.settings.target.radialBinds[tostring(k)] = tonumber(v) or v end end
+    if ini.TargetNames then for k, v in pairs(ini.TargetNames) do MFT.settings.target.names[tostring(k)] = valToStr(v) end end
     loadGroups(MFT.settings.target, "Target", ini)
     
     if ini.TargetQuick then
@@ -479,7 +484,7 @@ function engine.saveData()
     if not MFT.state.dataLoaded then return end
     MFT.settings = cleanCData(MFT.settings); MFT.binds = cleanCData(MFT.binds)
     
-    local ini = { ThemesInfo = { count = tostring(#(MFT.settings.savedThemes or {})) }, Settings = {}, Radial = {}, RadialBinds = {}, RadialColors = {}, SSFilters = {}, Target = {}, TargetRadial = {}, TargetQuick = {}, AutoReport = {}, AutoReportInfo = {}, SmartDept = {}, AutoLineBreak = {}, AutoLineBreakCmds = {}, Accordions = {}, SmartScreen = {}, SeqOverlay = {} }
+    local ini = { ThemesInfo = { count = tostring(#(MFT.settings.savedThemes or {})) }, Settings = {}, Radial = {}, RadialBinds = {}, RadialColors = {}, RadialNames = {}, SSFilters = {}, Target = {}, TargetRadial = {}, TargetNames = {}, TargetQuick = {}, AutoReport = {}, AutoReportInfo = {}, SmartDept = {}, AutoLineBreak = {}, AutoLineBreakCmds = {}, Accordions = {}, SmartScreen = {}, SeqOverlay = {} }
     
     for k, v in pairs(MFT.settings) do if type(v) ~= "table" then ini.Settings[k] = valToStr(v) end end
     for k, v in pairs(MFT.settings.ssFilters or {}) do ini.SSFilters[k] = valToStr(v) end
@@ -495,6 +500,7 @@ function engine.saveData()
     if MFT.settings.radial then
         for k, v in pairs(MFT.settings.radial) do if type(v) ~= "table" then ini.Radial[k] = valToStr(v) end end
         for k, v in pairs(MFT.settings.radial.binds or {}) do ini.RadialBinds[tostring(k)] = valToStr(v) end
+        for k, v in pairs(MFT.settings.radial.names or {}) do ini.RadialNames[tostring(k)] = valToStr(v) end
         if MFT.settings.radial.sectorColor then ini.RadialColors.r = valToStr(MFT.settings.radial.sectorColor[1]); ini.RadialColors.g = valToStr(MFT.settings.radial.sectorColor[2]); ini.RadialColors.b = valToStr(MFT.settings.radial.sectorColor[3]) end
         saveGroups(MFT.settings.radial, "Radial", ini)
     end
@@ -504,6 +510,7 @@ function engine.saveData()
         ini.Target.sectorsCount = valToStr(MFT.settings.target.sectorsCount); ini.Target.radius = valToStr(MFT.settings.target.radius); ini.Target.transparency = valToStr(MFT.settings.target.transparency)
         if MFT.settings.target.sectorColor then ini.Target.r = valToStr(MFT.settings.target.sectorColor[1]); ini.Target.g = valToStr(MFT.settings.target.sectorColor[2]); ini.Target.b = valToStr(MFT.settings.target.sectorColor[3]) end
         for k, v in pairs(MFT.settings.target.radialBinds or {}) do ini.TargetRadial[tostring(k)] = valToStr(v) end
+        for k, v in pairs(MFT.settings.target.names or {}) do ini.TargetNames[tostring(k)] = valToStr(v) end
         ini.TargetQuick.count = tostring(#MFT.settings.target.quickKeys)
         for i, q in ipairs(MFT.settings.target.quickKeys) do ini.TargetQuick["key_"..i] = valToStr(q.key); ini.TargetQuick["bind_"..i] = valToStr(q.bind) end
         saveGroups(MFT.settings.target, "Target", ini)
@@ -568,8 +575,8 @@ function engine.saveData()
     
     local function addIfNotEmpty(name, t) if next(t) ~= nil then ini[name] = t else ini[name] = nil end end
     addIfNotEmpty("Settings", ini.Settings); addIfNotEmpty("Radial", ini.Radial); addIfNotEmpty("RadialBinds", ini.RadialBinds)
-    addIfNotEmpty("RadialColors", ini.RadialColors); addIfNotEmpty("SSFilters", ini.SSFilters)
-    addIfNotEmpty("Target", ini.Target); addIfNotEmpty("TargetRadial", ini.TargetRadial); addIfNotEmpty("TargetQuick", ini.TargetQuick); addIfNotEmpty("AutoReport", ini.AutoReport); addIfNotEmpty("AutoReportInfo", ini.AutoReportInfo)
+    addIfNotEmpty("RadialColors", ini.RadialColors); addIfNotEmpty("RadialNames", ini.RadialNames); addIfNotEmpty("SSFilters", ini.SSFilters)
+    addIfNotEmpty("Target", ini.Target); addIfNotEmpty("TargetRadial", ini.TargetRadial); addIfNotEmpty("TargetNames", ini.TargetNames); addIfNotEmpty("TargetQuick", ini.TargetQuick); addIfNotEmpty("AutoReport", ini.AutoReport); addIfNotEmpty("AutoReportInfo", ini.AutoReportInfo)
     addIfNotEmpty("SmartDept", ini.SmartDept); addIfNotEmpty("AutoLineBreak", ini.AutoLineBreak); addIfNotEmpty("AutoLineBreakCmds", ini.AutoLineBreakCmds)
     addIfNotEmpty("Accordions", ini.Accordions)
     addIfNotEmpty("SmartScreen", ini.SmartScreen)
@@ -614,7 +621,6 @@ function engine.parseString(line)
     return parsedLine
 end
 
--- === УМНАЯ ОТПРАВКА СТРОК (АНТИ-ФЛУД) ===
 function engine.executeBind(bind)
     if not bind or bind.type == "folder" then return end
     if MFT.bindThreads[1] and MFT.bindThreads[1]:status() ~= "dead" then MFT.bindThreads[1]:terminate() end
@@ -642,21 +648,19 @@ function engine.executeBind(bind)
                     local delay = custom_sleep and tonumber(custom_sleep) or bind.delay
                     local waited = 0
                     
-                    -- Проверяем задержку и перехватываем мут от антифлуда
                     if i < #(bind.lines or {}) then
                         while waited < delay do
                             wait(50)
                             waited = waited + 50
                             
                             if engine.antiFloodTriggered then
-                                wait(3000) -- Ждем 3 секунды, чтобы сервер успокоился
+                                wait(3000) 
                                 sampSendChat(engine.lastSentLine)
                                 engine.antiFloodTriggered = false
-                                waited = 0 -- Обнуляем таймер для следующей строки
+                                waited = 0 
                             end
                         end
                     else
-                        -- Даже после последней строчки ждем долю секунды, чтобы проверить ответ сервера
                         wait(500)
                         if engine.antiFloodTriggered then
                             wait(3000)
@@ -781,7 +785,6 @@ function engine.processAutoReport()
                     wait(300) 
                     local parsed = engine.parseString(lineToSent)
                     if #parsed > 0 then
-                        -- Встраиваем анти-флуд и сюда тоже!
                         engine.lastSentLine = parsed
                         sampSendChat(parsed)
                         
@@ -906,7 +909,6 @@ function engine.advanceSequence(bind)
             
             parsedLine = engine.parseString(parsedLine)
             if parsedLine:match("%S") then
-                -- Встраиваем анти-флуд в пошаговые бинды
                 engine.lastSentLine = parsedLine
                 sampSendChat(parsedLine)
                 

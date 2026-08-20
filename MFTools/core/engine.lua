@@ -199,8 +199,13 @@ function engine.initDefaults()
         MFT.settings.autoScreenModes = { radio = true, su = false, arrest = false, frisk = false, cuff = false, ticket = false, heal = false, lic = false }
     end
     if not MFT.settings.savedThemes then MFT.settings.savedThemes = {} end
+    
     if type(MFT.settings.ssFilters) ~= "table" then
-        MFT.settings.ssFilters = {ooc = true, radio = true, vip = true, ads = true, sys = true, pd_alerts = true, afk = true, events = true, thoughts = true}
+        MFT.settings.ssFilters = {ooc = true, radio = true, vip = true, ads = true, sys = true, pd_alerts = true, afk = true, events = true, thoughts = true, sms = true, payday = true}
+    else
+        if MFT.settings.ssFilters.sms == nil then MFT.settings.ssFilters.sms = true end
+        if MFT.settings.ssFilters.payday == nil then MFT.settings.ssFilters.payday = true end
+        if MFT.settings.ssFilters.thoughts == nil then MFT.settings.ssFilters.thoughts = true end
     end
     
     if type(MFT.settings.radial) ~= "table" then MFT.settings.radial = {} end

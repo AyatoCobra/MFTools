@@ -34,16 +34,15 @@ function formatter.onServerMessage(color, text)
     local cleanText = text:gsub("{%x%x%x%x%x%x}", "")
     
     -- === УМНЫЙ АНТИ-ФЛУД (ПЕРЕХВАТ) ===
-    -- Добавь сюда другие вариации серверного сообщения о флуде, если они отличаются
     if cleanText:find("Не флуди") or cleanText:find("прекратите флудить") then
         local engine = require "MFTools.core.engine"
-        engine.antiFloodTriggered = true -- Даем движку сигнал, что сработал анти-флуд
-        return false -- Скрываем сообщение о флуде из чата, чтобы не раздражать игрока
+        engine.antiFloodTriggered = true 
+        return false 
     end
     -- ===================================
 
     if MFT.settings.ssMode then
-        local f = MFT.settings.ssFilters or {ooc = true, radio = true, vip = true, ads = true, sys = true, pd_alerts = true, afk = true, events = true, thoughts = true}
+        local f = MFT.settings.ssFilters or {ooc = true, radio = true, vip = true, ads = true, sys = true, pd_alerts = true, afk = true, events = true, thoughts = true, sms = true, payday = true}
         
         -- Фильтр OOC чатов
         if f.ooc and (cleanText:find("^%s*%(%(") or cleanText:find("%(%(.*%)%)$")) then 
@@ -65,8 +64,8 @@ function formatter.onServerMessage(color, text)
             return false 
         end
         
-        -- Системные и Админ-сообщения (включая репорты, жалобы, рекламу сервера и пейдей)
-        if f.sys and (cleanText:find("^%[A%]") or cleanText:find("^Администратор") or cleanText:find("^%[ЖБ%]") or cleanText:find("^Всего жалоб:") or cleanText:find("^Система %|") or cleanText:find("^Вы не получили зарплату")) then 
+        -- Системные и Админ-сообщения (включая репорты, жалобы, пассы, яхты, войсчат)
+        if f.sys and (cleanText:find("^%[A%]") or cleanText:find("^Администратор") or cleanText:find("Администратор установил вам временный") or cleanText:find("^%[ЖБ%]") or cleanText:find("^Всего жалоб:") or cleanText:find("^Система %|") or cleanText:find("^Вы не получили зарплату") or cleanText:find("^Mordor Pass %|") or cleanText:find("^%[Яхта%]") or cleanText:find("^%[Mordor VoiceChat%]")) then 
             return false 
         end
         
@@ -87,6 +86,16 @@ function formatter.onServerMessage(color, text)
         
         -- Фильтр Мыслей персонажа (Голод и т.д.)
         if f.thoughts and cleanText:find("^Мысли %|") then
+            return false
+        end
+        
+        -- Фильтр SMS сообщений
+        if f.sms and (cleanText:find("мобильный телефон и отправляет СМС") or cleanText:find("отправил СМС")) then
+            return false
+        end
+        
+        -- Фильтр Payday (Зарплаты и Уведомления)
+        if f.payday and (cleanText:find("^Законопослушность") or cleanText:find("^Зарплата:") or cleanText:find("^Зарплата семьи:") or cleanText:find("^Медицинское отчисление:") or cleanText:find("^Пенсионные отчисления:") or cleanText:find("^Итого зарплата:") or cleanText:find("^Баланс банковского счёта:") or cleanText:find("^Exp %+") or cleanText:find("^Напоминалка:") or cleanText:find("^%-%-%-%-%-%-%-%-%-%-%-%-%-%-%-%-%-%-%-%-%-%-%-%-%-%-%-%-%-%-")) then
             return false
         end
     end

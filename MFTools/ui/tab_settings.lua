@@ -320,6 +320,8 @@ function tab_settings.draw(dash, dt, c_accent, sb_color, c_text, availWidth)
             imgui.SetCursorPosX(35)
             imgui.BeginGroup()
             imgui.Columns(2, "ss_cols", false)
+            
+            -- ЛЕВЫЙ СТОЛБИК
             local b_ooc = imgui.new.bool(ssF.ooc == true)
             if imgui.Checkbox(u8"OOC Чаты (/n, /b)", b_ooc) then ssF.ooc = (b_ooc[0] == true); engine.saveData() end
             local b_rad = imgui.new.bool(ssF.radio == true)
@@ -328,7 +330,14 @@ function tab_settings.draw(dash, dt, c_accent, sb_color, c_text, availWidth)
             if imgui.Checkbox(u8"VIP и Семья", b_vip) then ssF.vip = (b_vip[0] == true); engine.saveData() end
             local b_afk = imgui.new.bool(ssF.afk == true)
             if imgui.Checkbox(u8"AFK сообщения", b_afk) then ssF.afk = (b_afk[0] == true); engine.saveData() end
+            local b_sms = imgui.new.bool(ssF.sms == true)
+            if imgui.Checkbox(u8"SMS сообщения", b_sms) then ssF.sms = (b_sms[0] == true); engine.saveData() end
+            local b_th = imgui.new.bool(ssF.thoughts == true)
+            if imgui.Checkbox(u8"Мысли персонажа", b_th) then ssF.thoughts = (b_th[0] == true); engine.saveData() end
+            
             imgui.NextColumn()
+            
+            -- ПРАВЫЙ СТОЛБИК
             local b_ads = imgui.new.bool(ssF.ads == true)
             if imgui.Checkbox(u8"Объявления (СМИ)", b_ads) then ssF.ads = (b_ads[0] == true); engine.saveData() end
             local b_sys = imgui.new.bool(ssF.sys == true)
@@ -337,6 +346,9 @@ function tab_settings.draw(dash, dt, c_accent, sb_color, c_text, availWidth)
             if imgui.Checkbox(u8"Розыск/Уведомления", b_pd) then ssF.pd_alerts = (b_pd[0] == true); engine.saveData() end
             local b_events = imgui.new.bool(ssF.events == true)
             if imgui.Checkbox(u8"Серверные ивенты", b_events) then ssF.events = (b_events[0] == true); engine.saveData() end
+            local b_payday = imgui.new.bool(ssF.payday == true)
+            if imgui.Checkbox(u8"Payday (Зарплаты)", b_payday) then ssF.payday = (b_payday[0] == true); engine.saveData() end
+            
             imgui.Columns(1)
             imgui.EndGroup()
         end
@@ -545,7 +557,6 @@ function tab_settings.draw(dash, dt, c_accent, sb_color, c_text, availWidth)
 
         if DrawBounceButton("btn_createtheme", u8"+ СОЗДАТЬ СВОЙ СТИЛЬ", imgui.ImVec2(300, 35), c_accent, imgui.ImVec4(0.15, 0.15, 0.15, 1.0), imgui.ImVec4(0.25, 0.25, 0.25, 1.0)) then
             ffi.copy(uistate.newThemeName, "")
-            -- Устанавливаем текущие цвета в буферы для палитры
             uistate.ctSettings.bg[0], uistate.ctSettings.bg[1], uistate.ctSettings.bg[2] = MFT.settings.colorBg[1], MFT.settings.colorBg[2], MFT.settings.colorBg[3]
             uistate.ctSettings.sidebar[0], uistate.ctSettings.sidebar[1], uistate.ctSettings.sidebar[2] = MFT.settings.colorSidebar[1], MFT.settings.colorSidebar[2], MFT.settings.colorSidebar[3]
             uistate.ctSettings.btn[0], uistate.ctSettings.btn[1], uistate.ctSettings.btn[2] = MFT.settings.colorBtn[1], MFT.settings.colorBtn[2], MFT.settings.colorBtn[3]
@@ -912,7 +923,6 @@ function tab_settings.draw(dash, dt, c_accent, sb_color, c_text, availWidth)
         
         local function DrawColorRow(label, colArr, id)
             imgui.TextUnformatted(label)
-            -- Выравниваем квадратик с цветом по правому краю
             imgui.SameLine(imgui.GetWindowWidth() - 45) 
             local flags = bit.bor(imgui.ColorEditFlags.NoInputs, imgui.ColorEditFlags.NoLabel)
             imgui.ColorEdit3(id, colArr, flags)

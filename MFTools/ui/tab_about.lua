@@ -164,7 +164,14 @@ function tab_about.draw(dash, dt, c_accent, sb_color, c_text, availWidth)
     imgui.TextColored(imgui.ImVec4(0.8, 0.8, 0.8, 1.0), u8"Связь с разработчиком (Discord):")
     imgui.SameLine()
     if imgui.Button(u8"Скопировать Discord", imgui.ImVec2(180, 24)) then
-        imgui.SetClipboardText("твой_discord_здесь")
+        imgui.SetClipboardText("bryan_kogfield")
+    end
+
+    imgui.Spacing()
+    imgui.TextColored(imgui.ImVec4(0.8, 0.8, 0.8, 1.0), u8"Связь с разработчиком (VK):")
+    imgui.SameLine()
+    if imgui.Button(u8"Скопировать VK", imgui.ImVec2(180, 24)) then
+        imgui.SetClipboardText("https://vk.ru/kogtevb")
     end
     
     imgui.EndChild()

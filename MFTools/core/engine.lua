@@ -7,8 +7,40 @@ encoding.default = 'CP1251'
 local u8 = encoding.UTF8
 
 local engine = {}
-engine.lastSentLine = ""           
-engine.antiFloodTriggered = false  
+
+-- === √ÀŒ¡¿À‹Õ¿ﬂ ¡ÀŒ »–Œ¬ ¿ ¿Õ“»-‘À”ƒ¿ ===
+engine.lastGlobalSendTime = 0
+engine.antiFloodTriggered = false
+
+function engine.safeSendChat(text)
+    local SAFE_DELAY = 2.5 
+    
+    while true do
+        local now = os.clock()
+        local diff = now - engine.lastGlobalSendTime
+        
+        if engine.antiFloodTriggered then
+            engine.antiFloodTriggered = false
+            wait(3000) 
+        elseif diff < SAFE_DELAY then
+            wait(50) 
+        else
+            break
+        end
+    end
+    
+    sampSendChat(text)
+    engine.lastGlobalSendTime = os.clock()
+    
+    wait(200)
+    if engine.antiFloodTriggered then
+        engine.antiFloodTriggered = false
+        wait(3000) 
+        engine.lastGlobalSendTime = os.clock()
+        sampSendChat(text) 
+    end
+end
+-- =========================================
 
 local cfgPath = getWorkingDirectory() .. "\\config\\MFTools_Data.ini"
 
@@ -194,6 +226,9 @@ function engine.initDefaults()
     if type(MFT.settings.accordions) ~= "table" then MFT.settings.accordions = {} end
     if not MFT.settings.recentCommands then MFT.settings.recentCommands = {} end
     if not MFT.settings.cmdUsageStats then MFT.settings.cmdUsageStats = {} end
+    if type(MFT.settings.customCommands) ~= "table" then MFT.settings.customCommands = {} end
+    if type(MFT.settings.hiddenCommands) ~= "table" then MFT.settings.hiddenCommands = {} end
+
     if MFT.settings.autoRpFormatter == nil then MFT.settings.autoRpFormatter = true end
     if type(MFT.settings.autoScreenModes) ~= "table" then
         MFT.settings.autoScreenModes = { radio = true, su = false, arrest = false, frisk = false, cuff = false, ticket = false, heal = false, lic = false }
@@ -347,6 +382,34 @@ function engine.loadData()
         end
     end
     
+    MFT.settings.recentCommands = {}
+    if ini.RecentCommands then
+        for i = 1, tonumber(ini.RecentCommands.count) or 0 do
+            table.insert(MFT.settings.recentCommands, valToStr(ini.RecentCommands["cmd_"..i]))
+        end
+    end
+
+    MFT.settings.cmdUsageStats = {}
+    if ini.CmdUsageStats then
+        for k, v in pairs(ini.CmdUsageStats) do
+            MFT.settings.cmdUsageStats[k] = tonumber(v) or 0
+        end
+    end
+    
+    MFT.settings.customCommands = {}
+    if ini.CustomCommands then
+        for i = 1, tonumber(ini.CustomCommands.count) or 0 do
+            table.insert(MFT.settings.customCommands, valToStr(ini.CustomCommands["cmd_"..i]))
+        end
+    end
+    
+    MFT.settings.hiddenCommands = {}
+    if ini.HiddenCommands then
+        for i = 1, tonumber(ini.HiddenCommands.count) or 0 do
+            table.insert(MFT.settings.hiddenCommands, valToStr(ini.HiddenCommands["cmd_"..i]))
+        end
+    end
+    
     MFT.settings.radial = {}
     MFT.settings.radial.names = {}
     if ini.Radial then
@@ -489,7 +552,7 @@ function engine.saveData()
     if not MFT.state.dataLoaded then return end
     MFT.settings = cleanCData(MFT.settings); MFT.binds = cleanCData(MFT.binds)
     
-    local ini = { ThemesInfo = { count = tostring(#(MFT.settings.savedThemes or {})) }, Settings = {}, Radial = {}, RadialBinds = {}, RadialColors = {}, RadialNames = {}, SSFilters = {}, Target = {}, TargetRadial = {}, TargetNames = {}, TargetQuick = {}, AutoReport = {}, AutoReportInfo = {}, SmartDept = {}, AutoLineBreak = {}, AutoLineBreakCmds = {}, Accordions = {}, SmartScreen = {}, SeqOverlay = {} }
+    local ini = { ThemesInfo = { count = tostring(#(MFT.settings.savedThemes or {})) }, Settings = {}, Radial = {}, RadialBinds = {}, RadialColors = {}, RadialNames = {}, SSFilters = {}, Target = {}, TargetRadial = {}, TargetNames = {}, TargetQuick = {}, AutoReport = {}, AutoReportInfo = {}, SmartDept = {}, AutoLineBreak = {}, AutoLineBreakCmds = {}, Accordions = {}, SmartScreen = {}, SeqOverlay = {}, RecentCommands = {}, CmdUsageStats = {}, CustomCommands = {}, HiddenCommands = {} }
     
     for k, v in pairs(MFT.settings) do if type(v) ~= "table" then ini.Settings[k] = valToStr(v) end end
     for k, v in pairs(MFT.settings.ssFilters or {}) do ini.SSFilters[k] = valToStr(v) end
@@ -501,6 +564,24 @@ function engine.saveData()
     ini.Settings.cUnselR = valToStr(MFT.settings.cmdColorUnsel[1])
     ini.Settings.cUnselG = valToStr(MFT.settings.cmdColorUnsel[2])
     ini.Settings.cUnselB = valToStr(MFT.settings.cmdColorUnsel[3])
+
+    ini.RecentCommands.count = tostring(#(MFT.settings.recentCommands or {}))
+    for i, cmd in ipairs(MFT.settings.recentCommands or {}) do
+        ini.RecentCommands["cmd_"..i] = valToStr(cmd)
+    end
+    for k, v in pairs(MFT.settings.cmdUsageStats or {}) do
+        ini.CmdUsageStats[k] = valToStr(v)
+    end
+    
+    ini.CustomCommands.count = tostring(#(MFT.settings.customCommands or {}))
+    for i, cmd in ipairs(MFT.settings.customCommands or {}) do
+        ini.CustomCommands["cmd_"..i] = valToStr(cmd)
+    end
+    
+    ini.HiddenCommands.count = tostring(#(MFT.settings.hiddenCommands or {}))
+    for i, cmd in ipairs(MFT.settings.hiddenCommands or {}) do
+        ini.HiddenCommands["cmd_"..i] = valToStr(cmd)
+    end
 
     if MFT.settings.radial then
         for k, v in pairs(MFT.settings.radial) do if type(v) ~= "table" then ini.Radial[k] = valToStr(v) end end
@@ -586,6 +667,10 @@ function engine.saveData()
     addIfNotEmpty("Accordions", ini.Accordions)
     addIfNotEmpty("SmartScreen", ini.SmartScreen)
     addIfNotEmpty("SeqOverlay", ini.SeqOverlay)
+    addIfNotEmpty("RecentCommands", ini.RecentCommands)
+    addIfNotEmpty("CmdUsageStats", ini.CmdUsageStats)
+    addIfNotEmpty("CustomCommands", ini.CustomCommands)
+    addIfNotEmpty("HiddenCommands", ini.HiddenCommands)
     
     for i, theme in ipairs(MFT.settings.savedThemes or {}) do
         ini["Theme_"..i] = {
@@ -647,31 +732,11 @@ function engine.executeBind(bind)
                 parsedLine = engine.parseString(parsedLine)
 
                 if parsedLine:match("%S") then
-                    engine.lastSentLine = parsedLine
-                    sampSendChat(parsedLine)
-                    
-                    local delay = custom_sleep and tonumber(custom_sleep) or bind.delay
-                    local waited = 0
+                    engine.safeSendChat(parsedLine)
                     
                     if i < #(bind.lines or {}) then
-                        while waited < delay do
-                            wait(50)
-                            waited = waited + 50
-                            
-                            if engine.antiFloodTriggered then
-                                wait(3000) 
-                                sampSendChat(engine.lastSentLine)
-                                engine.antiFloodTriggered = false
-                                waited = 0 
-                            end
-                        end
-                    else
-                        wait(500)
-                        if engine.antiFloodTriggered then
-                            wait(3000)
-                            sampSendChat(engine.lastSentLine)
-                            engine.antiFloodTriggered = false
-                        end
+                        local delay = custom_sleep and tonumber(custom_sleep) or bind.delay
+                        wait(delay)
                     end
                 end
             end
@@ -765,8 +830,8 @@ function engine.handleAutoLineBreak(text, isCommand)
                 elseif i == #parts then outStr = prefix .. part
                 else outStr = prefix .. part .. suffix end
             end
-            sampProcessChatInput(outStr)
-            if i < #parts then wait(1500) end
+            
+            engine.safeSendChat(outStr)
         end
         MFT.state.skipLineBreak = false
     end)
@@ -790,15 +855,7 @@ function engine.processAutoReport()
                     wait(300) 
                     local parsed = engine.parseString(lineToSent)
                     if #parsed > 0 then
-                        engine.lastSentLine = parsed
-                        sampSendChat(parsed)
-                        
-                        wait(500)
-                        if engine.antiFloodTriggered then
-                            wait(3000)
-                            sampSendChat(engine.lastSentLine)
-                            engine.antiFloodTriggered = false
-                        end
+                        engine.safeSendChat(parsed)
                         
                         if MFT.settings.autoReport.autoScreen == true then
                             wait(500); setVirtualKeyDown(vk.VK_F8, true); wait(50); setVirtualKeyDown(vk.VK_F8, false)
@@ -914,15 +971,7 @@ function engine.advanceSequence(bind)
             
             parsedLine = engine.parseString(parsedLine)
             if parsedLine:match("%S") then
-                engine.lastSentLine = parsedLine
-                sampSendChat(parsedLine)
-                
-                wait(500)
-                if engine.antiFloodTriggered then
-                    wait(3000)
-                    sampSendChat(engine.lastSentLine)
-                    engine.antiFloodTriggered = false
-                end
+                engine.safeSendChat(parsedLine)
             end
         end)
     end

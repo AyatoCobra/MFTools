@@ -47,25 +47,56 @@ end
 function suggest.onSendCommand(command) end
 
 local function filter_commands(input)
+    local input_lower = input:lower()
+    local is_only_slash = (input_lower == "/")
+    
     local matched_commands = {}
     local added = {}
-    local input_lower = input:lower()
     
+    -- Собираем список исключенных (скрытых) команд
+    local hidden_cmds = {}
+    if MFT.settings.hiddenCommands then
+        for _, hc in ipairs(MFT.settings.hiddenCommands) do
+            local h = hc:lower()
+            if h:sub(1,1) ~= "/" then h = "/" .. h end
+            hidden_cmds[h] = true
+        end
+    end
+
+    if is_only_slash then
+        if MFT.settings.recentCommands then
+            for _, cmd in ipairs(MFT.settings.recentCommands) do
+                -- Не показываем команду, если она в черном списке
+                if not hidden_cmds[cmd] then
+                    table.insert(matched_commands, cmd)
+                end
+            end
+        end
+        return matched_commands
+    end
+
     local function tryAdd(cmd)
         local c = cmd:lower()
+        if hidden_cmds[c] then return end -- Пропускаем скрытые
         if not added[c] and c:find(input_lower, 1, true) == 1 then
             table.insert(matched_commands, c)
             added[c] = true
         end
     end
 
-    if MFT.settings.recentCommands then
-        for _, cmd in ipairs(MFT.settings.recentCommands) do tryAdd(cmd) end
-    end
-
     tryAdd("/mft")
     tryAdd("/bb")
+    
+    -- Сначала проверяем пользовательские команды
+    if MFT.settings.customCommands then
+        for _, c in ipairs(MFT.settings.customCommands) do
+            local cc = c
+            if cc:sub(1,1) ~= "/" then cc = "/" .. cc end
+            tryAdd(cc)
+        end
+    end
 
+    -- Затем стандартную базу команд
     if MFT.data and type(MFT.data.command_list) == "table" then
         for _, v in ipairs(MFT.data.command_list) do
             local cName = ""
@@ -82,41 +113,21 @@ local function filter_commands(input)
         end
     end
 
-    local maxItems = MFT.settings.cmdMaxItems or 8
-
-    if input_lower == "/" then
-        local res = {}
-        for i = 1, math.min(maxItems, #matched_commands) do
-            table.insert(res, matched_commands[i])
-        end
-        return res
-    end
-
     table.sort(matched_commands, function(a, b)
-        local a_recent_idx = 999
-        local b_recent_idx = 999
-        
-        if MFT.settings.recentCommands then
-            for i, rcmd in ipairs(MFT.settings.recentCommands) do
-                if rcmd == a then a_recent_idx = i end
-                if rcmd == b then b_recent_idx = i end
-            end
-        end
-        
-        if a_recent_idx ~= b_recent_idx then
-            return a_recent_idx < b_recent_idx
-        end
-        
         local countA = (MFT.settings.cmdUsageStats and MFT.settings.cmdUsageStats[a]) or 0
         local countB = (MFT.settings.cmdUsageStats and MFT.settings.cmdUsageStats[b]) or 0
         
-        if countA == countB then
-            if #a == #b then return a < b end
-            return #a < #b 
+        if countA ~= countB then
+            return countA > countB 
         end
-        return countA > countB
+        
+        if #a == #b then
+            return a < b 
+        end
+        return #a < #b 
     end)
     
+    local maxItems = MFT.settings.cmdMaxItems or 8
     local final_result = {}
     for i = 1, math.min(maxItems, #matched_commands) do
         table.insert(final_result, matched_commands[i])
@@ -206,16 +217,14 @@ function suggest.processTick()
 end
 
 function suggest.onWindowMessage(msg, wparam, lparam)
-    -- ПЕРЕХВАТ ENTER (Самый надежный способ обойти все другие скрипты)
     if msg == 0x100 and wparam == 0x0D then
         if sampIsChatInputActive() then
             local current_text = sampGetChatInputText()
             
-            -- ПРОВЕРКА НА АВТОПЕРЕНОС
             local allow = engine.handleAutoLineBreak(current_text)
             if not allow then
-                sampSetChatInputEnabled(false) -- Моментально закрываем чат
-                return false -- Блокируем нажатие Enter для SA-MP и других скриптов
+                sampSetChatInputEnabled(false) 
+                return false 
             end
             
             if current_text:sub(1, 1) == "/" then

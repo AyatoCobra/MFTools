@@ -321,7 +321,6 @@ function tab_settings.draw(dash, dt, c_accent, sb_color, c_text, availWidth)
             imgui.BeginGroup()
             imgui.Columns(2, "ss_cols", false)
             
-            -- ЛЕВЫЙ СТОЛБИК
             local b_ooc = imgui.new.bool(ssF.ooc == true)
             if imgui.Checkbox(u8"OOC Чаты (/n, /b)", b_ooc) then ssF.ooc = (b_ooc[0] == true); engine.saveData() end
             local b_rad = imgui.new.bool(ssF.radio == true)
@@ -337,7 +336,6 @@ function tab_settings.draw(dash, dt, c_accent, sb_color, c_text, availWidth)
             
             imgui.NextColumn()
             
-            -- ПРАВЫЙ СТОЛБИК
             local b_ads = imgui.new.bool(ssF.ads == true)
             if imgui.Checkbox(u8"Объявления (СМИ)", b_ads) then ssF.ads = (b_ads[0] == true); engine.saveData() end
             local b_sys = imgui.new.bool(ssF.sys == true)
@@ -439,6 +437,9 @@ function tab_settings.draw(dash, dt, c_accent, sb_color, c_text, availWidth)
         if sugSet.cmdSuggestEnabled then
             imgui.Spacing()
             
+            if type(sugSet.customCommands) ~= "table" then sugSet.customCommands = {} end
+            if type(sugSet.hiddenCommands) ~= "table" then sugSet.hiddenCommands = {} end
+            
             imgui.PushItemWidth(250)
             local fMaxItems = ffi.new("int[1]", sugSet.cmdMaxItems)
             if imgui.SliderInt(u8"Макс. подсказок##sug_max", fMaxItems, 1, 20) then
@@ -456,6 +457,85 @@ function tab_settings.draw(dash, dt, c_accent, sb_color, c_text, availWidth)
             end
             imgui.PopItemWidth()
             
+            imgui.Spacing(); imgui.Separator(); imgui.Spacing()
+            imgui.TextColored(c_accent, u8"Управление списком команд:")
+            imgui.TextColored(imgui.ImVec4(0.6, 0.6, 0.6, 1.0), u8"Добавляйте свои команды или исключайте стандартные.")
+            imgui.Spacing()
+            
+            if not uistate.newCustomCmd then uistate.newCustomCmd = imgui.new.char[64]("") end
+            imgui.PushItemWidth(140)
+            imgui.InputTextWithHint("##add_custom_cmd", u8"/команда", uistate.newCustomCmd, 64)
+            imgui.PopItemWidth()
+            imgui.SameLine()
+            imgui.PushStyleColor(imgui.Col.Button, imgui.ImVec4(0.2, 0.6, 0.2, 0.5))
+            if imgui.Button(u8"+ Добавить свою", imgui.ImVec2(140, 24)) then
+                local cmdStr = ffi.string(uistate.newCustomCmd)
+                if cmdStr ~= "" then
+                    if cmdStr:sub(1,1) ~= "/" then cmdStr = "/" .. cmdStr end
+                    table.insert(sugSet.customCommands, cmdStr)
+                    ffi.copy(uistate.newCustomCmd, "")
+                    engine.saveData()
+                end
+            end
+            imgui.PopStyleColor()
+
+            if not uistate.newHiddenCmd then uistate.newHiddenCmd = imgui.new.char[64]("") end
+            imgui.PushItemWidth(140)
+            imgui.InputTextWithHint("##add_hidden_cmd", u8"/команда", uistate.newHiddenCmd, 64)
+            imgui.PopItemWidth()
+            imgui.SameLine()
+            imgui.PushStyleColor(imgui.Col.Button, imgui.ImVec4(0.8, 0.3, 0.3, 0.5))
+            if imgui.Button(u8"+ Исключить", imgui.ImVec2(140, 24)) then
+                local cmdStr = ffi.string(uistate.newHiddenCmd)
+                if cmdStr ~= "" then
+                    if cmdStr:sub(1,1) ~= "/" then cmdStr = "/" .. cmdStr end
+                    table.insert(sugSet.hiddenCommands, cmdStr)
+                    ffi.copy(uistate.newHiddenCmd, "")
+                    engine.saveData()
+                end
+            end
+            imgui.PopStyleColor()
+
+            imgui.Spacing(); imgui.Spacing()
+            
+            imgui.PushStyleColor(imgui.Col.ChildBg, imgui.ImVec4(0.02, 0.02, 0.02, 0.5))
+            imgui.BeginChild("CmdListsRegion", imgui.ImVec2(0, 150), true)
+            imgui.Columns(2, "cmd_lists", false)
+            
+            imgui.TextColored(imgui.ImVec4(0.4, 0.8, 0.4, 1.0), u8"Добавленные:")
+            local delCustom = -1
+            for i, cmd in ipairs(sugSet.customCommands or {}) do
+                imgui.Text(cmd)
+                imgui.SameLine(imgui.GetColumnWidth() - 30)
+                imgui.PushStyleColor(imgui.Col.Text, imgui.ImVec4(0.8, 0.2, 0.2, 1.0))
+                if imgui.Selectable("X##delc_"..i) then delCustom = i end
+                imgui.PopStyleColor()
+            end
+            if delCustom ~= -1 then
+                table.remove(sugSet.customCommands, delCustom)
+                engine.saveData()
+            end
+            
+            imgui.NextColumn()
+            
+            imgui.TextColored(imgui.ImVec4(0.8, 0.4, 0.4, 1.0), u8"Исключенные:")
+            local delHidden = -1
+            for i, cmd in ipairs(sugSet.hiddenCommands or {}) do
+                imgui.Text(cmd)
+                imgui.SameLine(imgui.GetColumnWidth() - 30)
+                imgui.PushStyleColor(imgui.Col.Text, imgui.ImVec4(0.8, 0.2, 0.2, 1.0))
+                if imgui.Selectable("X##delh_"..i) then delHidden = i end
+                imgui.PopStyleColor()
+            end
+            if delHidden ~= -1 then
+                table.remove(sugSet.hiddenCommands, delHidden)
+                engine.saveData()
+            end
+            
+            imgui.Columns(1)
+            imgui.EndChild()
+            imgui.PopStyleColor()
+
             imgui.Spacing(); imgui.Separator(); imgui.Spacing()
             imgui.TextColored(c_accent, u8"Настройка цветов:")
             
@@ -923,6 +1003,7 @@ function tab_settings.draw(dash, dt, c_accent, sb_color, c_text, availWidth)
         
         local function DrawColorRow(label, colArr, id)
             imgui.TextUnformatted(label)
+            -- Выравниваем квадратик с цветом по правому краю
             imgui.SameLine(imgui.GetWindowWidth() - 45) 
             local flags = bit.bor(imgui.ColorEditFlags.NoInputs, imgui.ColorEditFlags.NoLabel)
             imgui.ColorEdit3(id, colArr, flags)

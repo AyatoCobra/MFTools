@@ -1,12 +1,12 @@
 --[[
-    MFTools (Mordor Faction Tools) v1.4 (beta test)
+    MFTools (Mordor Faction Tools) v1.3 (beta test)
     Главный файл (Ядро + Автоустановщик + Автообновление)
     Разработчик: Bryan Kogfield (Богдан)
 ]]
 
 script_name("MFTools")
 script_author("Bryan Kogfield")
-script_version("1.4 (beta test)")
+script_version("1.3 (beta test)")
 
 require "lib.moonloader"
 local samp = require "lib.samp.events"
@@ -19,8 +19,8 @@ local vk = require "vkeys"
 -- ==========================================
 -- === НАСТРОЙКИ АВТООБНОВЛЕНИЯ И ЗАГРУЗКИ ===
 -- ==========================================
-local SCRIPT_VERSION = 1.4 
-local SCRIPT_VERSION_TEXT = "1.4 (beta test)"
+local SCRIPT_VERSION = 1.3 
+local SCRIPT_VERSION_TEXT = "1.3 (beta test)"
 
 -- JSON проверяем через githack для моментальной реакции
 local UPDATE_JSON_URL = "https://raw.githack.com/AyatoCobra/MFTools/main/update.json" 
@@ -258,7 +258,8 @@ imgui.OnInitialize(function() theme.initFonts() end)
 
 local uiFrame = imgui.OnFrame(
     function() 
-        return dashboard.shouldDraw() or radial_menu.isOpen or radial_menu.openAnim > 0.01 or target_core.shouldDraw() or MFT.state.isEditingChatLine or MFT.state.isCalibratingChat or MFT.state.ar.isRunning or MFT.state.isPlacingAROverlay or (MFT.state.updateAnim and MFT.state.updateAnim > 0.005)
+        -- УСЛОВИЕ ПРОБУЖДЕНИЯ ІНТЕРФЕЙСУ ПРИ ОНОВЛЕННІ (додано MFT.state.isUpdating)
+        return dashboard.shouldDraw() or radial_menu.isOpen or radial_menu.openAnim > 0.01 or target_core.shouldDraw() or MFT.state.isEditingChatLine or MFT.state.isCalibratingChat or MFT.state.ar.isRunning or MFT.state.isPlacingAROverlay or MFT.state.isUpdating or (MFT.state.updateAnim and MFT.state.updateAnim > 0.005)
     end,
     function(player)
         dashboard.draw()
@@ -272,7 +273,7 @@ local uiFrame = imgui.OnFrame(
         local dt = imgui.GetIO().DeltaTime
         local targetAlpha = MFT.state.isUpdating and 1.0 or 0.0
         
-        -- Плавная анимация: замедлили в 3 раза для отчетливого выплывания
+        -- Плавная анимация: замедлили в 4 раза для отчетливого выплывания
         if MFT.state.isUpdating then
             MFT.state.updateAnim = MFT.state.updateAnim + (targetAlpha - MFT.state.updateAnim) * math.min(1.0, 4.0 * dt)
         else
@@ -308,42 +309,34 @@ local uiFrame = imgui.OnFrame(
             local dl = imgui.GetWindowDrawList()
             local p = imgui.GetCursorScreenPos()
             
-            -- Заголовок
             if MFT.fonts.title then imgui.PushFont(MFT.fonts.title) end
             imgui.SetCursorPos(imgui.ImVec2(20, 15))
             imgui.TextColored(imgui.ImVec4(c_accent[1], c_accent[2], c_accent[3], 1.0), u8"MFTools | Обновление компонентов")
             if MFT.fonts.title then imgui.PopFont() end
             
-            -- Имя файла
             imgui.SetCursorPos(imgui.ImVec2(20, 45))
             imgui.TextColored(imgui.ImVec4(0.7, 0.7, 0.7, 1.0), u8"Файл: " .. u8(MFT.state.updateFileName))
             
-            -- Текст прогресса (справа)
             local progText = string.format("%d / %d", MFT.state.updateCurrent, MFT.state.updateTotal)
             local tW = imgui.CalcTextSize(progText).x
             imgui.SetCursorPos(imgui.ImVec2(winW - tW - 20, 45))
             imgui.TextColored(imgui.ImVec4(c_accent[1], c_accent[2], c_accent[3], 1.0), progText)
             
-            -- Кастомный красивый Progress Bar
             local barX, barY = p.x + 20, p.y + 70
             local barW, barH = winW - 40, 6
             local progress = MFT.state.updateTotal > 0 and (MFT.state.updateCurrent / MFT.state.updateTotal) or 0
             
-            -- Плавное заполнение полосы
             MFT.state.smoothProgress = MFT.state.smoothProgress or 0.0
             MFT.state.smoothProgress = MFT.state.smoothProgress + (progress - MFT.state.smoothProgress) * math.min(1.0, 15.0 * dt)
             
-            -- Фон полосы
             dl:AddRectFilled(imgui.ImVec2(barX, barY), imgui.ImVec2(barX + barW, barY + barH), imgui.GetColorU32Vec4(imgui.ImVec4(0.15, 0.15, 0.15, 1.0)), 3.0)
             
-            -- Заполненная часть с фейковым свечением (glow)
             if MFT.state.smoothProgress > 0.01 then
                 local fillW = barW * MFT.state.smoothProgress
                 dl:AddRectFilled(imgui.ImVec2(barX, barY - 1), imgui.ImVec2(barX + fillW, barY + barH + 1), imgui.GetColorU32Vec4(imgui.ImVec4(c_accent[1], c_accent[2], c_accent[3], 0.3)), 4.0)
                 dl:AddRectFilled(imgui.ImVec2(barX, barY), imgui.ImVec2(barX + fillW, barY + barH), imgui.GetColorU32Vec4(imgui.ImVec4(c_accent[1], c_accent[2], c_accent[3], 1.0)), 3.0)
             end
             
-            -- Статус/предупреждение
             imgui.SetCursorPos(imgui.ImVec2(20, 88))
             imgui.TextColored(imgui.ImVec4(0.4, 0.4, 0.4, 1.0), u8"Пожалуйста, не закрывайте игру до окончания загрузки...")
             
@@ -374,15 +367,14 @@ function main()
         checkForUpdates()
     end)
 
-    -- === ОБНОВЛЕННАЯ БРОНЕБОЙНАЯ СИСТЕМА С КРАСИВОЙ АНИМАЦИЕЙ ===
+    -- === ОБНОВЛЕННАЯ БРОНЕБОЙНАЯ СИСТЕМА С ЗАЩИТОЙ ОТ БЛОКИРОВОК ===
     sampRegisterChatCommand("mft_up", function() 
         if updateAvailable then
             local total_files = #files_to_download + 1 
             local current_file = 0
             
-            sampAddChatMessage("{3498DB}[MFTools] {FFFFFF}Начинаем загрузку обновления... Пожалуйста, подождите.", -1)
+            sampAddChatMessage("{3498DB}[MFTools] {FFFFFF}Запуск фонового обновления компонентов...", -1)
             
-            -- Включаем отображение стильного окна прогресса
             MFT.state.isUpdating = true
             MFT.state.updateTotal = total_files
             MFT.state.updateCurrent = 0
@@ -410,29 +402,36 @@ function main()
                     while not fileDone and os.clock() < fileTimeout do wait(50) end
                 end
                 
-                -- 2. СКАЧИВАЕМ ГЛАВНЫЙ ФАЙЛ
+                -- 2. СКАЧИВАЕМ ГЛАВНЫЙ ФАЙЛ ВО ВРЕМЕННЫЙ (.TMP) ФАЙЛ
                 local scriptPath = thisScript().path
+                local tempPath = scriptPath .. ".tmp"
                 local mainDone = false
                 
                 current_file = current_file + 1
                 MFT.state.updateCurrent = current_file
                 MFT.state.updateFileName = "MFTools.lua (Завершение)"
                 
-                downloadUrlToFile(updateUrl .. "?nocache=" .. os.time() .. "&rnd=" .. math.random(10000, 99999), scriptPath, function(id, status)
+                -- Используем жесткую ссылку MAIN_SCRIPT_URL
+                downloadUrlToFile(MAIN_SCRIPT_URL .. "?nocache=" .. os.time() .. "&rnd=" .. math.random(10000, 99999), tempPath, function(id, status)
                     if status == dlstatus.STATUS_ENDDOWNLOADDATA then mainDone = true end
                 end)
                 
                 local timeout = os.clock() + 15.0
                 while not mainDone and os.clock() < timeout do wait(50) end
                 
-                -- Ждем 1 секунду, чтобы игрок успел увидеть 100% загрузки
+                -- Чекаємо, щоб гравець побачив 100%
                 wait(1000)
                 
-                -- Запускаем плавное исчезновение
                 MFT.state.isUpdating = false
                 
-                -- Даем полторы секунды на то, чтобы окно красиво уплыло вниз
+                -- Чекаємо 1.5 секунди, поки вікно плавно відлетить вниз
                 wait(1500) 
+                
+                -- 3. ПОДМЕНЯЕМ ФАЙЛ И ПЕРЕЗАГРУЖАЕМ (ОБХОД БЛОКИРОВКИ WINDOWS)
+                if doesFileExist(tempPath) then
+                    os.remove(scriptPath)
+                    os.rename(tempPath, scriptPath)
+                end
                 
                 sampAddChatMessage("{88FF88}[MFTools] {FFFFFF}Все файлы успешно обновлены! Скрипт перезагружается...", -1)
                 thisScript():reload()

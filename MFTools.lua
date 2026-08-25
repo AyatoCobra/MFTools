@@ -42,7 +42,7 @@ local files_to_download = {
     -- Интерфейс (UI)
     { path = "MFTools\\ui\\dashboard.lua", url = "https://raw.githubusercontent.com/AyatoCobra/MFTools/main/MFTools/ui/dashboard.lua" },
     { path = "MFTools\\ui\\tab_settings.lua", url = "https://raw.githubusercontent.com/AyatoCobra/MFTools/main/MFTools/ui/tab_settings.lua" },
-    { path = "MFTools\\ui\\tab_binds.lua", url = "https://raw.githubusercontent.com/AyatoCobra/MFTools/main/MFTools/ui/tab_binds.lua" },
+    { path = "MFTools\\ui\\tab_binds.lua", url = "https://raw.githubusercontent.com/AyatoCobra/MFTools/main/MFTools/ui/tab_about.lua" },
     { path = "MFTools\\ui\\tab_about.lua", url = "https://raw.githubusercontent.com/AyatoCobra/MFTools/main/MFTools/ui/tab_about.lua" },
     { path = "MFTools\\ui\\tab_create.lua", url = "https://raw.githubusercontent.com/AyatoCobra/MFTools/main/MFTools/ui/tab_create.lua" },
     { path = "MFTools\\ui\\tab_interactions.lua", url = "https://raw.githubusercontent.com/AyatoCobra/MFTools/main/MFTools/ui/tab_interactions.lua" },
@@ -112,16 +112,14 @@ local function downloadDependencies()
     for i, file in ipairs(files_to_download) do
         local dest = getWorkingDirectory() .. "\\" .. file.path
         if not doesFileExist(dest) then
-            sampAddChatMessage(string.format("{3498DB}[MFTools] {FFFFFF}Загрузка: %d/%d (%s)...", i, total_files, file.path:match("([^%\\]+)$")), -1)
             local isDone = false
-            -- Жесткий сброс кэша
             local fileUrlWithNoCache = file.url .. "?nocache=" .. os.time() .. "&rnd=" .. math.random(10000, 99999)
             
             downloadUrlToFile(fileUrlWithNoCache, dest, function(id, status)
                 if status == dlstatus.STATUS_ENDDOWNLOADDATA then isDone = true end
             end)
             
-            local timeout = os.clock() + 15.0 -- Даем 15 секунд на скачивание файла
+            local timeout = os.clock() + 15.0 
             while not isDone and os.clock() < timeout do wait(50) end
         end
     end
@@ -133,7 +131,6 @@ end
 local function checkForUpdates()
     local jsonPath = getWorkingDirectory() .. "\\mft_update.json"
     
-    -- Максимально агрессивный сброс кэша: время + случайное число
     local urlWithNoCache = UPDATE_JSON_URL .. "?nocache=" .. os.time() .. "&rnd=" .. math.random(10000, 99999)
     
     downloadUrlToFile(urlWithNoCache, jsonPath, function(id, status, p1, p2)
@@ -150,7 +147,6 @@ local function checkForUpdates()
                 if success and data and tonumber(data.version) then
                     sampAddChatMessage("{3498DB}[MFTools] {FFFFFF}Текущая версия скрипта: {FFDD00}" .. SCRIPT_VERSION_TEXT, -1)
                     
-                    -- Проверяем на любое отличие версий (~=)
                     if tonumber(data.version) ~= SCRIPT_VERSION then
                         updateAvailable = true
                         updateUrl = data.url
@@ -231,7 +227,15 @@ _G.MFT = {
         colorPickerActive = false,
         colorPickerTarget = "",
         showTargetVis = false,
-        presetsExpanded = false
+        presetsExpanded = false,
+        
+        -- === ПЕРЕМЕННЫЕ ДЛЯ КРАСИВОГО ОКНА ОБНОВЛЕНИЯ ===
+        isUpdating = false,
+        updateCurrent = 0,
+        updateTotal = 0,
+        updateFileName = "",
+        updateAnim = 0.0,
+        smoothProgress = 0.0
     },
     settings = {}, binds = {}, bindThreads = {}, data = {}, fonts = {}
 }
@@ -254,7 +258,7 @@ imgui.OnInitialize(function() theme.initFonts() end)
 
 local uiFrame = imgui.OnFrame(
     function() 
-        return dashboard.shouldDraw() or radial_menu.isOpen or radial_menu.openAnim > 0.01 or target_core.shouldDraw() or MFT.state.isEditingChatLine or MFT.state.isCalibratingChat or MFT.state.ar.isRunning or MFT.state.isPlacingAROverlay
+        return dashboard.shouldDraw() or radial_menu.isOpen or radial_menu.openAnim > 0.01 or target_core.shouldDraw() or MFT.state.isEditingChatLine or MFT.state.isCalibratingChat or MFT.state.ar.isRunning or MFT.state.isPlacingAROverlay or (MFT.state.updateAnim and MFT.state.updateAnim > 0.005)
     end,
     function(player)
         dashboard.draw()
@@ -262,6 +266,92 @@ local uiFrame = imgui.OnFrame(
         target_core.drawUI()
         chatedit.drawUI()
         ovl_ar.draw(MFT.settings.colorAccent)
+
+        -- === КРАСИВОЕ ОКНО ПРОГРЕССА ОБНОВЛЕНИЯ ===
+        MFT.state.updateAnim = MFT.state.updateAnim or 0.0
+        local dt = imgui.GetIO().DeltaTime
+        local targetAlpha = MFT.state.isUpdating and 1.0 or 0.0
+        
+        -- Плавная анимация: замедлили в 3 раза для отчетливого выплывания
+        if MFT.state.isUpdating then
+            MFT.state.updateAnim = MFT.state.updateAnim + (targetAlpha - MFT.state.updateAnim) * math.min(1.0, 4.0 * dt)
+        else
+            MFT.state.updateAnim = MFT.state.updateAnim + (targetAlpha - MFT.state.updateAnim) * math.min(1.0, 4.0 * dt)
+        end
+
+        if MFT.state.updateAnim > 0.005 then
+            local sw, sh = getScreenResolution()
+            local winW, winH = 420, 115
+            local marginY = 50
+            
+            -- Выплывает прямо из-за нижнего края экрана
+            local startY = sh + 20 
+            local endY = sh - winH - marginY
+            -- Мягкое торможение в конце
+            local easeAnim = 1.0 - math.pow(1.0 - MFT.state.updateAnim, 4.0) 
+            local currentY = startY + (endY - startY) * easeAnim
+            local currentX = sw / 2 - winW / 2
+            
+            imgui.SetNextWindowPos(imgui.ImVec2(currentX, currentY), imgui.Cond.Always)
+            imgui.SetNextWindowSize(imgui.ImVec2(winW, winH), imgui.Cond.Always)
+            
+            local c_accent = MFT.settings.colorAccent or {0.35, 0.55, 0.85}
+            
+            imgui.PushStyleVarFloat(imgui.StyleVar.Alpha, MFT.state.updateAnim)
+            imgui.PushStyleColor(imgui.Col.WindowBg, imgui.ImVec4(0.07, 0.07, 0.08, 0.98))
+            imgui.PushStyleColor(imgui.Col.Border, imgui.ImVec4(c_accent[1], c_accent[2], c_accent[3], 0.6 * MFT.state.updateAnim))
+            imgui.PushStyleVarFloat(imgui.StyleVar.WindowRounding, 12.0)
+            imgui.PushStyleVarFloat(imgui.StyleVar.WindowBorderSize, 1.5)
+            
+            imgui.Begin("##ModernUpdatePopup", nil, imgui.WindowFlags.NoTitleBar + imgui.WindowFlags.NoResize + imgui.WindowFlags.NoMove + imgui.WindowFlags.NoCollapse + imgui.WindowFlags.NoFocusOnAppearing + imgui.WindowFlags.NoInputs)
+            
+            local dl = imgui.GetWindowDrawList()
+            local p = imgui.GetCursorScreenPos()
+            
+            -- Заголовок
+            if MFT.fonts.title then imgui.PushFont(MFT.fonts.title) end
+            imgui.SetCursorPos(imgui.ImVec2(20, 15))
+            imgui.TextColored(imgui.ImVec4(c_accent[1], c_accent[2], c_accent[3], 1.0), u8"MFTools | Обновление компонентов")
+            if MFT.fonts.title then imgui.PopFont() end
+            
+            -- Имя файла
+            imgui.SetCursorPos(imgui.ImVec2(20, 45))
+            imgui.TextColored(imgui.ImVec4(0.7, 0.7, 0.7, 1.0), u8"Файл: " .. u8(MFT.state.updateFileName))
+            
+            -- Текст прогресса (справа)
+            local progText = string.format("%d / %d", MFT.state.updateCurrent, MFT.state.updateTotal)
+            local tW = imgui.CalcTextSize(progText).x
+            imgui.SetCursorPos(imgui.ImVec2(winW - tW - 20, 45))
+            imgui.TextColored(imgui.ImVec4(c_accent[1], c_accent[2], c_accent[3], 1.0), progText)
+            
+            -- Кастомный красивый Progress Bar
+            local barX, barY = p.x + 20, p.y + 70
+            local barW, barH = winW - 40, 6
+            local progress = MFT.state.updateTotal > 0 and (MFT.state.updateCurrent / MFT.state.updateTotal) or 0
+            
+            -- Плавное заполнение полосы
+            MFT.state.smoothProgress = MFT.state.smoothProgress or 0.0
+            MFT.state.smoothProgress = MFT.state.smoothProgress + (progress - MFT.state.smoothProgress) * math.min(1.0, 15.0 * dt)
+            
+            -- Фон полосы
+            dl:AddRectFilled(imgui.ImVec2(barX, barY), imgui.ImVec2(barX + barW, barY + barH), imgui.GetColorU32Vec4(imgui.ImVec4(0.15, 0.15, 0.15, 1.0)), 3.0)
+            
+            -- Заполненная часть с фейковым свечением (glow)
+            if MFT.state.smoothProgress > 0.01 then
+                local fillW = barW * MFT.state.smoothProgress
+                dl:AddRectFilled(imgui.ImVec2(barX, barY - 1), imgui.ImVec2(barX + fillW, barY + barH + 1), imgui.GetColorU32Vec4(imgui.ImVec4(c_accent[1], c_accent[2], c_accent[3], 0.3)), 4.0)
+                dl:AddRectFilled(imgui.ImVec2(barX, barY), imgui.ImVec2(barX + fillW, barY + barH), imgui.GetColorU32Vec4(imgui.ImVec4(c_accent[1], c_accent[2], c_accent[3], 1.0)), 3.0)
+            end
+            
+            -- Статус/предупреждение
+            imgui.SetCursorPos(imgui.ImVec2(20, 88))
+            imgui.TextColored(imgui.ImVec4(0.4, 0.4, 0.4, 1.0), u8"Пожалуйста, не закрывайте игру до окончания загрузки...")
+            
+            imgui.End()
+            imgui.PopStyleVar(3)
+            imgui.PopStyleColor(2)
+        end
+        -- ==================================
     end
 )
 
@@ -284,39 +374,30 @@ function main()
         checkForUpdates()
     end)
 
-    -- === ОБНОВЛЕННАЯ БРОНЕБОЙНАЯ СИСТЕМА ЗАГРУЗКИ ФАЙЛОВ ===
+    -- === ОБНОВЛЕННАЯ БРОНЕБОЙНАЯ СИСТЕМА С КРАСИВОЙ АНИМАЦИЕЙ ===
     sampRegisterChatCommand("mft_up", function() 
         if updateAvailable then
-            local total_files = #files_to_download + 1 -- Учитываем главный файл
-            local current_file = 1
+            local total_files = #files_to_download + 1 
+            local current_file = 0
             
-            sampAddChatMessage(string.format("{3498DB}[MFTools] {FFFFFF}Начинаем обновление! Всего файлов: {FFDD00}%d", total_files), -1)
-            sampAddChatMessage("{3498DB}[MFTools] {FFFFFF}Пожалуйста, не закрывайте игру до окончания загрузки.", -1)
+            sampAddChatMessage("{3498DB}[MFTools] {FFFFFF}Начинаем загрузку обновления... Пожалуйста, подождите.", -1)
             
+            -- Включаем отображение стильного окна прогресса
+            MFT.state.isUpdating = true
+            MFT.state.updateTotal = total_files
+            MFT.state.updateCurrent = 0
+            MFT.state.updateFileName = "Подготовка..."
+            MFT.state.smoothProgress = 0.0
+
             lua_thread.create(function()
-                local scriptPath = thisScript().path
-                local mainDone = false
-                
-                sampAddChatMessage(string.format("{3498DB}[MFTools] {FFFFFF}Скачивание: %d/%d (Главный файл MFTools.lua)...", current_file, total_files), -1)
-                
-                -- Скачиваем главный файл
-                downloadUrlToFile(updateUrl .. "?nocache=" .. os.time() .. "&rnd=" .. math.random(10000, 99999), scriptPath, function(id, status)
-                    if status == dlstatus.STATUS_ENDDOWNLOADDATA then mainDone = true end
-                end)
-                
-                local timeout = os.clock() + 15.0 -- Даем 15 секунд
-                while not mainDone and os.clock() < timeout do wait(50) end
-                current_file = current_file + 1
-                
-                -- Скачиваем все зависимости
+                -- 1. СКАЧИВАЕМ ЗАВИСИМОСТИ
                 for _, file in ipairs(files_to_download) do
                     local dest = getWorkingDirectory() .. "\\" .. file.path
-                    
-                    -- ЖЕСТКОЕ УДАЛЕНИЕ СТАРОГО ФАЙЛА
                     if doesFileExist(dest) then os.remove(dest) end
                     
-                    -- ВЫВОД ПРОГРЕССА В ЧАТ
-                    sampAddChatMessage(string.format("{3498DB}[MFTools] {FFFFFF}Скачивание: %d/%d (%s)...", current_file, total_files, file.path:match("([^%\\]+)$")), -1)
+                    current_file = current_file + 1
+                    MFT.state.updateCurrent = current_file
+                    MFT.state.updateFileName = file.path:match("([^%\\]+)$")
                     
                     local fileDone = false
                     local fileUrlWithNoCache = file.url .. "?nocache=" .. os.time() .. "&rnd=" .. math.random(10000, 99999)
@@ -325,10 +406,33 @@ function main()
                         if status == dlstatus.STATUS_ENDDOWNLOADDATA then fileDone = true end
                     end)
                     
-                    local fileTimeout = os.clock() + 15.0 -- Даем 15 секунд на каждый файл
+                    local fileTimeout = os.clock() + 15.0 
                     while not fileDone and os.clock() < fileTimeout do wait(50) end
-                    current_file = current_file + 1
                 end
+                
+                -- 2. СКАЧИВАЕМ ГЛАВНЫЙ ФАЙЛ
+                local scriptPath = thisScript().path
+                local mainDone = false
+                
+                current_file = current_file + 1
+                MFT.state.updateCurrent = current_file
+                MFT.state.updateFileName = "MFTools.lua (Завершение)"
+                
+                downloadUrlToFile(updateUrl .. "?nocache=" .. os.time() .. "&rnd=" .. math.random(10000, 99999), scriptPath, function(id, status)
+                    if status == dlstatus.STATUS_ENDDOWNLOADDATA then mainDone = true end
+                end)
+                
+                local timeout = os.clock() + 15.0
+                while not mainDone and os.clock() < timeout do wait(50) end
+                
+                -- Ждем 1 секунду, чтобы игрок успел увидеть 100% загрузки
+                wait(1000)
+                
+                -- Запускаем плавное исчезновение
+                MFT.state.isUpdating = false
+                
+                -- Даем полторы секунды на то, чтобы окно красиво уплыло вниз
+                wait(1500) 
                 
                 sampAddChatMessage("{88FF88}[MFTools] {FFFFFF}Все файлы успешно обновлены! Скрипт перезагружается...", -1)
                 thisScript():reload()
@@ -369,17 +473,16 @@ function samp.onServerMessage(color, text) return formatter.onServerMessage(colo
 -- === ИНТЕЛЛЕКТУАЛЬНАЯ ОБРАБОТКА НАЖАТИЙ КЛАВИШ (ЗАКРЫТИЕ НА ESCAPE) ===
 function onWindowMessage(msg, wparam, lparam) 
     if wparam == vk.VK_ESCAPE and MFT.state.isMenuOpen then
-        if msg == 0x0100 or msg == 0x0101 then -- WM_KEYDOWN (0x0100) или WM_KEYUP (0x0101)
-            consumeWindowMessage(true, false) -- Блокируем ESC, чтобы игра не ушла в паузу
+        if msg == 0x0100 or msg == 0x0101 then 
+            consumeWindowMessage(true, false) 
             
-            if msg == 0x0101 then -- Логику выполняем только при отпускании клавиши (безопаснее)
+            if msg == 0x0101 then 
                 local isCapturing = MFT.state.capturingSmartScreenKey or MFT.state.capturingSeqKey or 
                                     MFT.state.capturingRadialHotkey or MFT.state.capturingTargetRadial or 
                                     (MFT.state.capturingTargetQuick and MFT.state.capturingTargetQuick > 0) or 
                                     (MFT.state.capturingHotkeyFor and MFT.state.capturingHotkeyFor ~= -1)
                 
                 if isCapturing then
-                    -- Ничего не делаем, интерфейс сам снимет бинд по ESC
                 elseif MFT.state.colorPickerActive then
                     MFT.state.colorPickerActive = false
                 elseif MFT.state.isCustomThemeOpen then

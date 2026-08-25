@@ -1,12 +1,12 @@
 --[[
-    MFTools (Mordor Faction Tools) v1.3 (beta test)
+    MFTools (Mordor Faction Tools) v1.4 (beta test)
     Главный файл (Ядро + Автоустановщик + Автообновление)
     Разработчик: Bryan Kogfield (Богдан)
 ]]
 
 script_name("MFTools")
 script_author("Bryan Kogfield")
-script_version("1.3 (beta test)")
+script_version("1.4 (beta test)")
 
 require "lib.moonloader"
 local samp = require "lib.samp.events"
@@ -19,8 +19,8 @@ local vk = require "vkeys"
 -- ==========================================
 -- === НАСТРОЙКИ АВТООБНОВЛЕНИЯ И ЗАГРУЗКИ ===
 -- ==========================================
-local SCRIPT_VERSION = 1.3 
-local SCRIPT_VERSION_TEXT = "1.3 (beta test)"
+local SCRIPT_VERSION = 1.4 
+local SCRIPT_VERSION_TEXT = "1.4 (beta test)"
 
 -- JSON проверяем через githack для моментальной реакции
 local UPDATE_JSON_URL = "https://raw.githack.com/AyatoCobra/MFTools/main/update.json" 
@@ -106,19 +106,22 @@ end
 
 local function downloadDependencies()
     createDirectories()
-    sampAddChatMessage("{3498DB}[MFTools] {FFFFFF}Началась установка компонентов (около 15 сек). Пожалуйста, подождите...", -1)
+    local total_files = #files_to_download
+    sampAddChatMessage(string.format("{3498DB}[MFTools] {FFFFFF}Началась установка компонентов (всего файлов: {FFDD00}%d{FFFFFF}). Пожалуйста, подождите...", total_files), -1)
     
     for i, file in ipairs(files_to_download) do
         local dest = getWorkingDirectory() .. "\\" .. file.path
         if not doesFileExist(dest) then
+            sampAddChatMessage(string.format("{3498DB}[MFTools] {FFFFFF}Загрузка: %d/%d (%s)...", i, total_files, file.path:match("([^%\\]+)$")), -1)
             local isDone = false
-            local fileUrlWithNoCache = file.url .. "?t=" .. os.time()
+            -- Жесткий сброс кэша
+            local fileUrlWithNoCache = file.url .. "?nocache=" .. os.time() .. "&rnd=" .. math.random(10000, 99999)
             
             downloadUrlToFile(fileUrlWithNoCache, dest, function(id, status)
                 if status == dlstatus.STATUS_ENDDOWNLOADDATA then isDone = true end
             end)
             
-            local timeout = os.clock() + 5.0
+            local timeout = os.clock() + 15.0 -- Даем 15 секунд на скачивание файла
             while not isDone and os.clock() < timeout do wait(50) end
         end
     end
@@ -281,28 +284,50 @@ function main()
         checkForUpdates()
     end)
 
+    -- === ОБНОВЛЕННАЯ БРОНЕБОЙНАЯ СИСТЕМА ЗАГРУЗКИ ФАЙЛОВ ===
     sampRegisterChatCommand("mft_up", function() 
         if updateAvailable then
-            sampAddChatMessage("{3498DB}[MFTools] {FFFFFF}Загрузка обновления (около 10-15 сек). Пожалуйста, не закрывайте игру...", -1)
+            local total_files = #files_to_download + 1 -- Учитываем главный файл
+            local current_file = 1
+            
+            sampAddChatMessage(string.format("{3498DB}[MFTools] {FFFFFF}Начинаем обновление! Всего файлов: {FFDD00}%d", total_files), -1)
+            sampAddChatMessage("{3498DB}[MFTools] {FFFFFF}Пожалуйста, не закрывайте игру до окончания загрузки.", -1)
             
             lua_thread.create(function()
                 local scriptPath = thisScript().path
                 local mainDone = false
-                downloadUrlToFile(updateUrl .. "?t=" .. os.time(), scriptPath, function(id, status)
+                
+                sampAddChatMessage(string.format("{3498DB}[MFTools] {FFFFFF}Скачивание: %d/%d (Главный файл MFTools.lua)...", current_file, total_files), -1)
+                
+                -- Скачиваем главный файл
+                downloadUrlToFile(updateUrl .. "?nocache=" .. os.time() .. "&rnd=" .. math.random(10000, 99999), scriptPath, function(id, status)
                     if status == dlstatus.STATUS_ENDDOWNLOADDATA then mainDone = true end
                 end)
-                local timeout = os.clock() + 5.0
-                while not mainDone and os.clock() < timeout do wait(50) end
                 
+                local timeout = os.clock() + 15.0 -- Даем 15 секунд
+                while not mainDone and os.clock() < timeout do wait(50) end
+                current_file = current_file + 1
+                
+                -- Скачиваем все зависимости
                 for _, file in ipairs(files_to_download) do
                     local dest = getWorkingDirectory() .. "\\" .. file.path
+                    
+                    -- ЖЕСТКОЕ УДАЛЕНИЕ СТАРОГО ФАЙЛА
+                    if doesFileExist(dest) then os.remove(dest) end
+                    
+                    -- ВЫВОД ПРОГРЕССА В ЧАТ
+                    sampAddChatMessage(string.format("{3498DB}[MFTools] {FFFFFF}Скачивание: %d/%d (%s)...", current_file, total_files, file.path:match("([^%\\]+)$")), -1)
+                    
                     local fileDone = false
-                    downloadUrlToFile(file.url .. "?t=" .. os.time(), dest, function(id, status)
+                    local fileUrlWithNoCache = file.url .. "?nocache=" .. os.time() .. "&rnd=" .. math.random(10000, 99999)
+                    
+                    downloadUrlToFile(fileUrlWithNoCache, dest, function(id, status)
                         if status == dlstatus.STATUS_ENDDOWNLOADDATA then fileDone = true end
                     end)
                     
-                    local fileTimeout = os.clock() + 3.0
+                    local fileTimeout = os.clock() + 15.0 -- Даем 15 секунд на каждый файл
                     while not fileDone and os.clock() < fileTimeout do wait(50) end
+                    current_file = current_file + 1
                 end
                 
                 sampAddChatMessage("{88FF88}[MFTools] {FFFFFF}Все файлы успешно обновлены! Скрипт перезагружается...", -1)
@@ -312,6 +337,7 @@ function main()
             sampAddChatMessage("{FF0000}[MFTools] {FFFFFF}Нет доступных обновлений. Введите {FFDD00}/mft_check{FFFFFF} для проверки сервера.", -1)
         end
     end)
+    -- =========================================================
     
     sampRegisterChatCommand("bb", function(arg) engine.cmdRunBind(arg) end)
 

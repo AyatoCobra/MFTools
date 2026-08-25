@@ -1,12 +1,12 @@
 --[[
-    MFTools (Mordor Faction Tools) v1.4 (beta test)
+    MFTools (Mordor Faction Tools) v1.5 (beta test)
     Главный файл (Ядро + Автоустановщик + Автообновление)
     Разработчик: Bryan Kogfield (Богдан)
 ]]
 
 script_name("MFTools")
 script_author("Bryan Kogfield")
-script_version("1.4 (beta test)")
+script_version("1.5 (beta test)")
 
 require "lib.moonloader"
 local samp = require "lib.samp.events"
@@ -19,8 +19,8 @@ local vk = require "vkeys"
 -- ==========================================
 -- === НАСТРОЙКИ АВТООБНОВЛЕНИЯ И ЗАГРУЗКИ ===
 -- ==========================================
-local SCRIPT_VERSION = 1.4 
-local SCRIPT_VERSION_TEXT = "1.4 (beta test)"
+local SCRIPT_VERSION = 1.5 
+local SCRIPT_VERSION_TEXT = "1.5 (beta test)"
 
 -- JSON проверяем через githack для моментальной реакции
 local UPDATE_JSON_URL = "https://raw.githack.com/AyatoCobra/MFTools/main/update.json" 

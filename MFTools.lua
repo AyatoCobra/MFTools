@@ -1,12 +1,12 @@
 --[[
-    MFTools (Mordor Faction Tools) v1.5 (beta test)
+    MFTools (Mordor Faction Tools) v1.3 (beta test)
     Главный файл (Ядро + Автоустановщик + Автообновление)
     Разработчик: Bryan Kogfield (Богдан)
 ]]
 
 script_name("MFTools")
 script_author("Bryan Kogfield")
-script_version("1.5 (beta test)")
+script_version("1.3 (beta test)")
 
 require "lib.moonloader"
 local samp = require "lib.samp.events"
@@ -19,8 +19,8 @@ local vk = require "vkeys"
 -- ==========================================
 -- === НАСТРОЙКИ АВТООБНОВЛЕНИЯ И ЗАГРУЗКИ ===
 -- ==========================================
-local SCRIPT_VERSION = 1.5 
-local SCRIPT_VERSION_TEXT = "1.5 (beta test)"
+local SCRIPT_VERSION = 1.3 
+local SCRIPT_VERSION_TEXT = "1.3 (beta test)"
 
 -- JSON проверяем через githack для моментальной реакции
 local UPDATE_JSON_URL = "https://raw.githack.com/AyatoCobra/MFTools/main/update.json" 
@@ -42,7 +42,7 @@ local files_to_download = {
     -- Интерфейс (UI)
     { path = "MFTools\\ui\\dashboard.lua", url = "https://raw.githubusercontent.com/AyatoCobra/MFTools/main/MFTools/ui/dashboard.lua" },
     { path = "MFTools\\ui\\tab_settings.lua", url = "https://raw.githubusercontent.com/AyatoCobra/MFTools/main/MFTools/ui/tab_settings.lua" },
-    { path = "MFTools\\ui\\tab_binds.lua", url = "https://raw.githubusercontent.com/AyatoCobra/MFTools/main/MFTools/ui/tab_about.lua" },
+    { path = "MFTools\\ui\\tab_binds.lua", url = "https://raw.githubusercontent.com/AyatoCobra/MFTools/main/MFTools/ui/tab_binds.lua" },
     { path = "MFTools\\ui\\tab_about.lua", url = "https://raw.githubusercontent.com/AyatoCobra/MFTools/main/MFTools/ui/tab_about.lua" },
     { path = "MFTools\\ui\\tab_create.lua", url = "https://raw.githubusercontent.com/AyatoCobra/MFTools/main/MFTools/ui/tab_create.lua" },
     { path = "MFTools\\ui\\tab_interactions.lua", url = "https://raw.githubusercontent.com/AyatoCobra/MFTools/main/MFTools/ui/tab_interactions.lua" },
@@ -130,7 +130,6 @@ end
 
 local function checkForUpdates()
     local jsonPath = getWorkingDirectory() .. "\\mft_update.json"
-    
     local urlWithNoCache = UPDATE_JSON_URL .. "?nocache=" .. os.time() .. "&rnd=" .. math.random(10000, 99999)
     
     downloadUrlToFile(urlWithNoCache, jsonPath, function(id, status, p1, p2)
@@ -153,6 +152,7 @@ local function checkForUpdates()
                         updateVersionText = data.version_text
                         sampAddChatMessage("{3498DB}[MFTools] {FFFFFF}Доступно обновление: {FFDD00}" .. updateVersionText, -1)
                         sampAddChatMessage("{3498DB}[MFTools] {FFFFFF}Напишите команду в чат {FFDD00}/mft_up{FFFFFF}, чтобы установить его.", -1)
+                        sampAddChatMessage("{3498DB}[MFTools] {FFFFFF}Если у вас ничего не обновилось, пропишите {FFDD00}/mft_repair{FFFFFF}.", -1)
                     else
                         updateAvailable = false
                         sampAddChatMessage("{3498DB}[MFTools] {FFFFFF}Проверка обновлений прошла успешно, обновлений не обнаружено.", -1)
@@ -229,7 +229,6 @@ _G.MFT = {
         showTargetVis = false,
         presetsExpanded = false,
         
-        -- === ПЕРЕМЕННЫЕ ДЛЯ КРАСИВОГО ОКНА ОБНОВЛЕНИЯ ===
         isUpdating = false,
         updateCurrent = 0,
         updateTotal = 0,
@@ -258,7 +257,6 @@ imgui.OnInitialize(function() theme.initFonts() end)
 
 local uiFrame = imgui.OnFrame(
     function() 
-        -- УСЛОВИЕ ПРОБУЖДЕНИЯ ІНТЕРФЕЙСУ ПРИ ОНОВЛЕННІ (додано MFT.state.isUpdating)
         return dashboard.shouldDraw() or radial_menu.isOpen or radial_menu.openAnim > 0.01 or target_core.shouldDraw() or MFT.state.isEditingChatLine or MFT.state.isCalibratingChat or MFT.state.ar.isRunning or MFT.state.isPlacingAROverlay or MFT.state.isUpdating or (MFT.state.updateAnim and MFT.state.updateAnim > 0.005)
     end,
     function(player)
@@ -273,7 +271,6 @@ local uiFrame = imgui.OnFrame(
         local dt = imgui.GetIO().DeltaTime
         local targetAlpha = MFT.state.isUpdating and 1.0 or 0.0
         
-        -- Плавная анимация: замедлили в 4 раза для отчетливого выплывания
         if MFT.state.isUpdating then
             MFT.state.updateAnim = MFT.state.updateAnim + (targetAlpha - MFT.state.updateAnim) * math.min(1.0, 4.0 * dt)
         else
@@ -285,10 +282,8 @@ local uiFrame = imgui.OnFrame(
             local winW, winH = 420, 115
             local marginY = 50
             
-            -- Выплывает прямо из-за нижнего края экрана
             local startY = sh + 20 
             local endY = sh - winH - marginY
-            -- Мягкое торможение в конце
             local easeAnim = 1.0 - math.pow(1.0 - MFT.state.updateAnim, 4.0) 
             local currentY = startY + (endY - startY) * easeAnim
             local currentX = sw / 2 - winW / 2
@@ -348,6 +343,98 @@ local uiFrame = imgui.OnFrame(
     end
 )
 
+-- УНИВЕРСАЛЬНАЯ И ЖЕСТКАЯ ФУНКЦИЯ ЗАГРУЗКИ / ПЕРЕУСТАНОВКИ ФАЙЛОВ
+local function startUpdateProcess(isForce)
+    if not isForce and not updateAvailable then
+        sampAddChatMessage("{FF0000}[MFTools] {FFFFFF}Нет доступных обновлений. Введите {FFDD00}/mft_check{FFFFFF} для проверки сервера.", -1)
+        sampAddChatMessage("{3498DB}[MFTools] {FFFFFF}Если у вас ничего не обновилось, пропишите {FFDD00}/mft_repair{FFFFFF}.", -1)
+        return
+    end
+
+    local total_files = #files_to_download + 1 
+    local current_file = 0
+    
+    if isForce then
+        sampAddChatMessage("{3498DB}[MFTools] {FFFFFF}Запущена принудительная тотальная переустановка...", -1)
+    else
+        sampAddChatMessage("{3498DB}[MFTools] {FFFFFF}Запуск фонового обновления компонентов...", -1)
+    end
+    
+    MFT.state.isUpdating = true
+    MFT.state.updateTotal = total_files
+    MFT.state.updateCurrent = 0
+    MFT.state.updateFileName = "Подготовка..."
+    MFT.state.smoothProgress = 0.0
+
+    lua_thread.create(function()
+        -- 1. ЖЕСТКОЕ СКАЧИВАНИЕ ВСЕХ ЗАВИСИМОСТЕЙ
+        for _, file in ipairs(files_to_download) do
+            local dest = getWorkingDirectory() .. "\\" .. file.path
+            local tmpDest = dest .. ".tmp"
+            
+            current_file = current_file + 1
+            MFT.state.updateCurrent = current_file
+            MFT.state.updateFileName = file.path:match("([^%\\]+)$")
+            
+            local fileDone = false
+            local fileUrlWithNoCache = file.url .. "?nocache=" .. os.time() .. "&rnd=" .. math.random(10000, 99999)
+            
+            downloadUrlToFile(fileUrlWithNoCache, tmpDest, function(id, status)
+                if status == dlstatus.STATUS_ENDDOWNLOADDATA then fileDone = true end
+            end)
+            
+            local fileTimeout = os.clock() + 15.0 
+            while not fileDone and os.clock() < fileTimeout do wait(50) end
+            
+            -- Удаляем старый файл и подменяем на новый (тотальная замена)
+            if doesFileExist(tmpDest) then
+                if doesFileExist(dest) then os.remove(dest) end
+                os.rename(tmpDest, dest)
+            end
+        end
+        
+        -- 2. СКАЧИВАНИЕ ГЛАВНОГО ФАЙЛА
+        local scriptPath = thisScript().path
+        local tempPath = scriptPath .. ".tmp"
+        local mainDone = false
+        
+        current_file = current_file + 1
+        MFT.state.updateCurrent = current_file
+        MFT.state.updateFileName = "MFTools.lua (Завершение)"
+        
+        downloadUrlToFile(MAIN_SCRIPT_URL .. "?nocache=" .. os.time() .. "&rnd=" .. math.random(10000, 99999), tempPath, function(id, status)
+            if status == dlstatus.STATUS_ENDDOWNLOADDATA then mainDone = true end
+        end)
+        
+        local timeout = os.clock() + 15.0
+        while not mainDone and os.clock() < timeout do wait(50) end
+        
+        wait(1000)
+        MFT.state.isUpdating = false
+        wait(1500) 
+        
+        if doesFileExist(tempPath) then
+            os.remove(scriptPath)
+            os.rename(tempPath, scriptPath)
+        end
+        
+        if isForce then
+            sampAddChatMessage("{88FF88}[MFTools] {FFFFFF}Все файлы успешно переустановлены! Скрипт перезагружается...", -1)
+        else
+            sampAddChatMessage("{88FF88}[MFTools] {FFFFFF}Все файлы успешно обновлены! Скрипт перезагружается...", -1)
+        end
+        
+        -- 3. ТОТАЛЬНАЯ ОЧИСТКА КЭША RAM (Решение проблемы с призрачными файлами)
+        for k in pairs(package.loaded) do
+            if type(k) == "string" and (k:find("^MFTools") or k:find("^ui") or k:find("^core") or k:find("^data") or k:find("^radial") or k:find("^target")) then
+                package.loaded[k] = nil
+            end
+        end
+        
+        thisScript():reload()
+    end)
+end
+
 function main()
     while not isSampAvailable() do wait(100) end
     
@@ -367,80 +454,15 @@ function main()
         checkForUpdates()
     end)
 
-    -- === ОБНОВЛЕННАЯ БРОНЕБОЙНАЯ СИСТЕМА С ЗАЩИТОЙ ОТ БЛОКИРОВОК ===
-    sampRegisterChatCommand("mft_up", function() 
-        if updateAvailable then
-            local total_files = #files_to_download + 1 
-            local current_file = 0
-            
-            sampAddChatMessage("{3498DB}[MFTools] {FFFFFF}Запуск фонового обновления компонентов...", -1)
-            
-            MFT.state.isUpdating = true
-            MFT.state.updateTotal = total_files
-            MFT.state.updateCurrent = 0
-            MFT.state.updateFileName = "Подготовка..."
-            MFT.state.smoothProgress = 0.0
-
-            lua_thread.create(function()
-                -- 1. СКАЧИВАЕМ ЗАВИСИМОСТИ
-                for _, file in ipairs(files_to_download) do
-                    local dest = getWorkingDirectory() .. "\\" .. file.path
-                    if doesFileExist(dest) then os.remove(dest) end
-                    
-                    current_file = current_file + 1
-                    MFT.state.updateCurrent = current_file
-                    MFT.state.updateFileName = file.path:match("([^%\\]+)$")
-                    
-                    local fileDone = false
-                    local fileUrlWithNoCache = file.url .. "?nocache=" .. os.time() .. "&rnd=" .. math.random(10000, 99999)
-                    
-                    downloadUrlToFile(fileUrlWithNoCache, dest, function(id, status)
-                        if status == dlstatus.STATUS_ENDDOWNLOADDATA then fileDone = true end
-                    end)
-                    
-                    local fileTimeout = os.clock() + 15.0 
-                    while not fileDone and os.clock() < fileTimeout do wait(50) end
-                end
-                
-                -- 2. СКАЧИВАЕМ ГЛАВНЫЙ ФАЙЛ ВО ВРЕМЕННЫЙ (.TMP) ФАЙЛ
-                local scriptPath = thisScript().path
-                local tempPath = scriptPath .. ".tmp"
-                local mainDone = false
-                
-                current_file = current_file + 1
-                MFT.state.updateCurrent = current_file
-                MFT.state.updateFileName = "MFTools.lua (Завершение)"
-                
-                -- Используем жесткую ссылку MAIN_SCRIPT_URL
-                downloadUrlToFile(MAIN_SCRIPT_URL .. "?nocache=" .. os.time() .. "&rnd=" .. math.random(10000, 99999), tempPath, function(id, status)
-                    if status == dlstatus.STATUS_ENDDOWNLOADDATA then mainDone = true end
-                end)
-                
-                local timeout = os.clock() + 15.0
-                while not mainDone and os.clock() < timeout do wait(50) end
-                
-                -- Чекаємо, щоб гравець побачив 100%
-                wait(1000)
-                
-                MFT.state.isUpdating = false
-                
-                -- Чекаємо 1.5 секунди, поки вікно плавно відлетить вниз
-                wait(1500) 
-                
-                -- 3. ПОДМЕНЯЕМ ФАЙЛ И ПЕРЕЗАГРУЖАЕМ (ОБХОД БЛОКИРОВКИ WINDOWS)
-                if doesFileExist(tempPath) then
-                    os.remove(scriptPath)
-                    os.rename(tempPath, scriptPath)
-                end
-                
-                sampAddChatMessage("{88FF88}[MFTools] {FFFFFF}Все файлы успешно обновлены! Скрипт перезагружается...", -1)
-                thisScript():reload()
-            end)
-        else
-            sampAddChatMessage("{FF0000}[MFTools] {FFFFFF}Нет доступных обновлений. Введите {FFDD00}/mft_check{FFFFFF} для проверки сервера.", -1)
-        end
-    end)
-    -- =========================================================
+    -- === СТАНДАРТНОЕ ОБНОВЛЕНИЕ ===
+    local function cmd_up() startUpdateProcess(false) end
+    sampRegisterChatCommand("mft_up", cmd_up)
+    sampRegisterChatCommand("nft_up", cmd_up) -- Алиас на случай опечатки
+    
+    -- === ПРИНУДИТЕЛЬНАЯ ПЕРЕУСТАНОВКА ВСЕХ ФАЙЛОВ ===
+    local function cmd_repair() startUpdateProcess(true) end
+    sampRegisterChatCommand("mft_repair", cmd_repair)
+    sampRegisterChatCommand("nft_repair", cmd_repair) -- Алиас на случай опечатки
     
     sampRegisterChatCommand("bb", function(arg) engine.cmdRunBind(arg) end)
 
@@ -469,7 +491,6 @@ end
 function samp.onSendChat(text) return text end
 function samp.onServerMessage(color, text) return formatter.onServerMessage(color, text) end
 
--- === ИНТЕЛЛЕКТУАЛЬНАЯ ОБРАБОТКА НАЖАТИЙ КЛАВИШ (ЗАКРЫТИЕ НА ESCAPE) ===
 function onWindowMessage(msg, wparam, lparam) 
     if wparam == vk.VK_ESCAPE and MFT.state.isMenuOpen then
         if msg == 0x0100 or msg == 0x0101 then 
